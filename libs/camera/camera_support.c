@@ -919,6 +919,14 @@ status_t BOARD_InitMipiCsi(void)
             0x12,
         },
         {
+            /* EXP-s260: SXGA true-30 row (fsl_ov5640.c fps key 36, PLL 896 MHz,
+             * lane rate 4/3 of SXGA30's).  Start from the 672 Mbps rows' 0x12;
+             * sentai.camera.csi_settle() overrides for tuning. */
+            FSL_VIDEO_RESOLUTION(1280, 960),
+            36,
+            0x12,
+        },
+        {
             kVIDEO_Resolution1080P,
             15,
             0x12,

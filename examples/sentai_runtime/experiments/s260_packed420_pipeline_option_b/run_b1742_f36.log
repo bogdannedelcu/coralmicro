@@ -1,0 +1,126 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1742 (2026-11-01 10:25:34) board 58eb
+>>> 
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> print("HW", sentai.camera.set_hw(1280, 960))
+print("HW", sentai.camera.set_hw(1280, 960))
+HW 0
+>>> 
+>>> print("INIT", sentai.camera.init(1, 36))
+print("INIT", sentai.camera.init(1, 36))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=29 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 15 lines (423 us) -> alternation at full rate
+[cam] genlock step 0: phase -110 us -> cam1 VTS 984+6 for one frame
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xDE (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase -110 us -> cam1 VTS 984+6 for one frame
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xDE (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase -111 us -> cam1 VTS 984+7 for one frame
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xDF (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock FAILED: residual phase -110 us
+INIT 0
+>>> 
+>>> print("CI", sentai.camera.current_id())
+print("CI", sentai.camera.current_id())
+CI 0
+>>> 
+>>> print("NM", sentai.camera.reg_read(0, 0x3A00))
+print("NM", sentai.camera.reg_read(0, 0x3A00))
+NM 88
+>>> 
+>>> sentai.camera.reg_write(0, 0x3A00, 88)
+sentai.camera.reg_write(0, 0x3A00, 88)
+[CAM0] W 0x3A00=0x58 (0)
+0
+>>> 
+>>> print("SF", sentai.camera.sensor_frames())
+print("SF", sentai.camera.sensor_frames())
+SF 389
+>>> 
+>>> print("SF", sentai.camera.sensor_frames())
+print("SF", sentai.camera.sensor_frames())
+SF 458
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+Model loaded: 516960 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0296f8b3eb875be6
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00034542  zero_point=134
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00012524  zero_point=83
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_relu_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+72
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+
+>>> print("STOP", sentai.pipeline.stop())
+
+>>> sentai.pipeline.infer_reset()
+
+>>> sentai.pipeline.prep_reset()
+
+>>> print("START", sentai.pipeline.start(0.5))
+
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+
+>>> print("STOP", sentai.pipeline.stop())
+
+>>> print(sentai.tpu.urb_sync_stats())
+
+>>> print(sentai.sys.health())
+

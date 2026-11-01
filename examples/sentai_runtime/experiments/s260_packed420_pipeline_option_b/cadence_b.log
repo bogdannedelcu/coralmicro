@@ -1,0 +1,125 @@
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> print("HW", sentai.camera.set_hw(1280, 960))
+print("HW", sentai.camera.set_hw(1280, 960))
+HW 0
+>>> 
+>>> sentai.camera.packed420(1)
+sentai.camera.packed420(1)
+1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 36))
+print("INIT", sentai.camera.init(1, 36))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=028003C0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[CAM0] W 0x460C=0x22 (0)
+[CAM0] W 0x3824=0x01 (0)
+[cam] packed420 capture: sensor format 0x5F + PCLK div manual/1 -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 15 lines (423 us) -> alternation at full rate
+INIT 0
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 13176865
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 21631009
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+Model loaded: 516960 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0296f8b3eb875be6
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00034542  zero_point=134
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00012524  zero_point=83
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_relu_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.pipeline.debug_no_invoke(1)
+sentai.pipeline.debug_no_invoke(1)
+1
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 8387, 'cam_grab_ms_sum': 206, 'quant_ms_sum': 0, 'frames': 258, 'total_ms_sum': 8694, 'sem_wait_ms_sum': 1}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> sentai.pipeline.trace(1)
+sentai.pipeline.trace(1)
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 45813793
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 10156, 'cam_grab_ms_sum': 202, 'quant_ms_sum': 0, 'frames': 312, 'total_ms_sum': 10474, 'sem_wait_ms_sum': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 71438369
+>>> 
+>>> print("ST", sentai.camera.stats())
+print("ST", sentai.camera.stats())
+ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 15, 'grab_fatal': 0, 'vblank_us': 543, 'drain_timeout': 0, 'stale_skips': 2, 'phase_us': None, 'stalled': 0, 'stall_count': 0, 'period_us': 22288, 'switch_fallback': 0, 'genlock_steps': 0, 'genlock_ok': 0, 'flips_executed': 29, 'ratio_unit': 1, 'flips_deferred': 29}
+>>> 
+>>> print("TR", sentai.pipeline.trace())
+print("TR", sentai.pipeline.trace())
+TR [(47576209, 4, 1, 339), (47597595, 10, 1, 339), (47608717, 5, 1, 339), (47609064, 1, 0, 340), (47609064, 2, 0, 340), (47609410, 11, 1, 339), (47609411, 12, 1, 339), (47609412, 14, 1, 339), (47609434, 3, 1, 533), (47609436, 4, 0, 340), (47630595, 10, 0, 340), (47641928, 5, 0, 340), (47642275, 1, 1, 341), (47642275, 2, 1, 341), (47642622, 11, 0, 340), (47642623, 12, 0, 340), (47642623, 14, 0, 340), (47642643, 3, 1, 533), (47642644, 4, 1, 341), (47664595, 10, 1, 341), (47675132, 5, 1, 341), (47675479, 1, 0, 342), (47675479, 2, 0, 342), (47675826, 11, 1, 341), (47675827, 12, 1, 341), (47675827, 14, 1, 341), (47675845, 3, 1, 534), (47675846, 4, 0, 342), (47697595, 10, 0, 342), (47708375, 5, 0, 342), (47708722, 1, 1, 343), (47708723, 2, 1, 343), (47709069, 11, 0, 342), (47709070, 12, 0, 342), (47709071, 14, 0, 342), (47709091, 3, 1, 534), (47709092, 4, 1, 343), (47730595, 10, 1, 343), (47741625, 5, 1, 343), (47741972, 1, 0, 344), (47741972, 2, 0, 344), (47742318, 11, 1, 343), (47742320, 12, 1, 343), (47742320, 14, 1, 343), (47742343, 3, 1, 535), (47742344, 4, 0, 344), (47763595, 10, 0, 344), (47774869, 5, 0, 344), (47775216, 1, 1, 345), (47775216, 2, 1, 345), (47775563, 11, 0, 344), (47775564, 12, 0, 344), (47775564, 14, 0, 344), (47775583, 3, 1, 535), (47775584, 4, 1, 345), (47796595, 10, 1, 345), (47808102, 5, 1, 345), (47808449, 1, 0, 346), (47808449, 2, 0, 346), (47808795, 11, 1, 345), (47808797, 12, 1, 345), (47808797, 14, 1, 345), (47808816, 3, 1, 536), (47808818, 4, 0, 346), (47830595, 10, 0, 346), (47841355, 5, 0, 346), (47841702, 1, 1, 347), (47841703, 2, 1, 347), (47842049, 11, 0, 346), (47842050, 12, 0, 346), (47842051, 14, 0, 346), (47842074, 3, 1, 536), (47842075, 4, 1, 347), (47863595, 10, 1, 347), (47874601, 5, 1, 347), (47874948, 1, 0, 348), (47874949, 2, 0, 348), (47875295, 11, 1, 347), (47875296, 12, 1, 347), (47875297, 14, 1, 347), (47875319, 3, 1, 537), (47875320, 4, 0, 348), (47896596, 10, 0, 348), (47907842, 5, 0, 348), (47908190, 1, 1, 349), (47908190, 2, 1, 349), (47908536, 11, 0, 348), (47908537, 12, 0, 348), (47908538, 14, 0, 348), (47908556, 3, 1, 537), (47908558, 4, 1, 349), (47929595, 10, 1, 349), (47941078, 5, 1, 349), (47941425, 1, 0, 350), (47941425, 2, 0, 350), (47941772, 11, 1, 349), (47941773, 12, 1, 349), (47941773, 14, 1, 349), (47941792, 3, 1, 538), (47941793, 4, 0, 350), (47963595, 10, 0, 350), (47974313, 5, 0, 350), (47974661, 1, 1, 351), (47974662, 2, 1, 351), (47975008, 11, 0, 350), (47975009, 12, 0, 350), (47975010, 14, 0, 350), (47975028, 3, 1, 538), (47975029, 4, 1, 351), (47996596, 10, 1, 351), (48007555, 5, 1, 351), (48007903, 1, 0, 352), (48007903, 2, 0, 352), (48008249, 11, 1, 351), (48008251, 12, 1, 351), (48008251, 14, 1, 351), (48008268, 3, 1, 539), (48008269, 4, 0, 352), (48029595, 10, 0, 352), (48040764, 5, 0, 352), (48041112, 1, 1, 353), (48041112, 2, 1, 353), (48041117, 11, 0, 352), (48041119, 12, 0, 352), (48041119, 14, 0, 352), (48045940, 3, 1, 539), (48045944, 4, 1, 353), (48078446, 5, 1, 353)]
+>>> 

@@ -29,6 +29,8 @@ PHASES = {
     'sxga_legacy': (1280, 960, 30, False),
     'sxga_b':      (1280, 960, 30, True),
     'sxga15_legacy': (1280, 960, 15, False),
+    'sxga36_legacy': (1280, 960, 36, False),
+    'sxga36_b':      (1280, 960, 36, True),
     'sxga15_b':      (1280, 960, 15, True),
 }
 

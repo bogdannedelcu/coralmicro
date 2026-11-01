@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T08:12:20.379Z
+  modified: 2026-11-01T08:36:47.953Z
 ---
 
 **EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
@@ -40,6 +40,17 @@ metadata:
   by size (SXGA test without a model wrote 1.84 MB into the 921 KB OCRAM buffer →
   precise bus error at 0x20400000). (3) CSI write window ≈ active lines only:
   VGA45 packed 10.9 ms / legacy 21.7 ms; SXGA30 21.8 / 43.6 ms.
+- **"SXGA30" row = 22.6 fps real** (CSI FRMCNT; `sensor_frames()` over-counts ~15 %).
+  True-30 row added: `camera.init(1, 36)` (PLL 0x70, sysdiv 2, mipi_div 1, settle
+  0x12; SDK patch 0007, build 1742): camera + PXP option B 28.6 prepared fps (PXP
+  32.6 ms ≈ frame period), legacy 15.2 fps and the full legacy pipeline HANGS the
+  board (REPL silent, USB alive, no crash log; recover with flashtool re-flash);
+  option B pipeline 13.6 fps, 0 errors (USB-bound).  Frame rate ∝ PLL mult /
+  (sysdiv × mipi_div); mipi_div also divides PCLK.
+- "Retrain" for option B is probably unnecessary: packed `[C,Y1,Y2]` is a
+  space-to-depth of Y along x plus U/V row interleave, so the planar stem's weights
+  re-index exactly into an H×W/2×3 stem with stride (2,1); only the TPU compiler
+  mapping of the asymmetric stride needs checking.
 - Open: W24-T15 step 2 (PrepTask starts the repack mid-frame), step 3 (OCRAM line
   ring; does the CSI DMA alternate FB1/FB2 mid-frame?), W24-T16 production (3-channel
   stem retrain, frame-layout flag for JPEG/flow/markers).

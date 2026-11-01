@@ -74,6 +74,36 @@ in the MIPI YUV420 format delivers ~26 frame-counter ticks/s and the grab lands 
 every other frame boundary when PXP + grab exceed one period).  With the TPU the
 pipeline is USB-bound at 13.8 fps (above), so the prep side now has headroom.
 
+## The "SXGA 30 fps" row was 22.6 fps — and a true-30 row (`cadence_probe.py`, build 1742)
+
+Operator question: if the PXP keeps up (27 ms < 33 ms), why 22.5 and not 30 prepared
+frames/s?  The CSI hardware frame counter (`CSI_CR3.FRMCNT`) answers: the sensor row
+selected by `camera.init(1, 30)` at 1280x960 delivers **22.6 frames/s**, idle or
+loaded, legacy or packed.  The row was cloned from the SDK's 720P/30 clock row (PLL
+84x, sysdiv 2, MIPI div 1) but the SXGA frame has 984 lines instead of ~740, so
+30 x 740/984 = 22.6.  `sentai.camera.sensor_frames()` over-counts by ~15 % (26/s), which
+is where the "30 fps" belief in s258 came from (s258's "camera 30" numbers were at
+22.6 fps, its "camera 15" numbers at ~11.3).
+
+Frame rate scales with PLL mult / (sysdiv x mipi_div), so a row with mult 112 (0x70,
+PLL 896 MHz = the VGA/60 row's PLL) and the same dividers gives a true 30 fps.  Added
+as `fsl_ov5640.c` fps key **36** (SDK patch 0007), D-PHY settle 0x12.
+
+| SXGA row | CSI FRMCNT | mode | camera + PXP only | full pipeline (TPU) |
+|---|---|---|---|---|
+| fps key 30 (PLL 84x) | 22.6 /s | legacy | 17.5 fps, PXP 51 ms | 12.7 fps |
+| fps key 30 | 22.6 /s | option B | 22.5 fps, PXP 27 ms | 13.8 fps |
+| **fps key 36 (PLL 112x)** | **30.0 /s** | legacy | 15.2 fps, PXP 62 ms | **board hang** (REPL silent, USB alive, no crash log; recovered by re-flash) |
+| fps key 36 | 30.0 /s | option B | **28.6 fps, PXP 32.6 ms** | 13.6 fps, invoke 71 ms, 0 errors |
+
+* With a real 30 fps camera the legacy path (4 B/px CSI = 147 MB/s + PXP read 4 B/px)
+  starves the rest of the SoC again — the s258 "total collapse" regime that the
+  W24-T12 EHCI/SEMC tuning had cured only at 22.6 fps.  Option B halves the CSI
+  write and survives with zero errors.
+* Camera + PXP in option B at a true 30 fps: 28.6 prepared frames/s with the PXP at
+  32.6 ms, i.e. right at the frame period — the slice-chasing repack (s261) would
+  spread it inside the frame.  The TPU pipeline stays at 13.6 fps: USB-bound.
+
 ## Method notes
 
 * Each phase is a fresh boot; the first pipeline run after `camera.init()` is slower

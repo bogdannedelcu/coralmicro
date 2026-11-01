@@ -1,5 +1,12 @@
 # EXP-s258 — Edge TPU at 1280×960 YUV420: model, camera, pipeline, and the SDRAM contention fix
 
+> **Correction (2026-11-01, EXP-s260):** the sensor row used here as "SXGA 30 fps"
+> actually delivers 22.6 frames/s (CSI `CR3.FRMCNT`; the row was cloned from 720P/30
+> and the 1280x960 frame has 984 lines), and "SXGA 15 fps" ~11.3.  `sensor_frames()`
+> over-counts by ~15 %.  Read every "camera 30 fps" below as 22.6 fps.  A true 30 fps
+> row exists since build 1742 (`camera.init(1, 36)`, SDK patch 0007); the legacy XYUV
+> path hangs the board on it, option B (s260) runs.
+
 WBS: **OP-S10-W24-T11** (SXGA inference end to end) and **OP-S10-W24-T12** (SDRAM
 contention on the TPU input path).  Board 58eb (rev 1.1), builds 1711–1722,
 2026-10-31.  Operator asks: "how many fps can we get at 1280×960 YUV420?", then

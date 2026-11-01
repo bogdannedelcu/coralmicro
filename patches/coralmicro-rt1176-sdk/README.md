@@ -96,6 +96,24 @@ it in `libs/tpu/edgetpu_driver.cc` with per-bit counters and a last-error
 record exposed through `sentai.tpu.urb_sync_stats()['ehci']`.  No control-flow
 change, no new error path.
 
+### `0007-ov5640-sxga-true30-row.patch`
+
+**Why (OP-S10-W24-T16, 2026-11-01, EXP-s260):** the 1280x960 clock rows added
+by patch 0001 were cloned from the SDK's 720P/30 row (PLL 84x, sysdiv 2,
+MIPI div 1).  A 720p frame has ~740 lines, the SXGA frame 984, so the "SXGA
+30 fps" row actually streams **22.6 frames/s** (CSI `CR3.FRMCNT`; the
+firmware's `sensor_frames()` counter over-counts by ~15 %, hence the belief).
+Frame rate scales with PLL multiplier / (sysdiv x mipi_div).
+
+**What:** one more `s_ov5640MipiClockConfigs` row for 1280x960, keyed on the
+fake frame rate **36**, with multiplier 0x70 (112x, PLL 896 MHz — the same
+PLL the VGA/60 row uses) and `pclkPeriod` 0x08; measured 30.0 frames/s.  The
+fps-30 row is kept unchanged so earlier measurements stay reproducible.  The
+receiver's D-PHY settle for (SXGA, 36) is 0x12 in `camera_support.c`;
+`sentai.camera.csi_settle()` can override it.  Note: at a true 30 fps the
+legacy XYUV capture (4 B/px, 147 MB/s) hangs the board (SDRAM starvation of
+the USB/REPL tasks); the packed YUV420 capture (`camera.packed420(1)`) runs.
+
 ## Adding a new patch
 
 1. Edit the submodule tree under `third_party/nxp/rt1176-sdk/` directly.

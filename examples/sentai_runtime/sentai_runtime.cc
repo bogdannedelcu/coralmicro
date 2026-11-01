@@ -4143,7 +4143,8 @@ extern "C" void sentai_cam_genlock_stats(int32_t* phase_us, uint32_t* valid,
 extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
     int streaming, int fps, int hflip, int vflip) {
   /* Validate fps against the patched fsl_ov5640.c VGA table. */
-  if (fps != 15 && fps != 30 && fps != 45 && fps != 60 && fps != 90) {
+  if (fps != 15 && fps != 30 && fps != 45 && fps != 60 && fps != 90 &&
+      fps != 36 /* EXP-s260: SXGA true-30 row (PLL 112x) */) {
     return -10;
   }
   if (g_cam_initialized) {

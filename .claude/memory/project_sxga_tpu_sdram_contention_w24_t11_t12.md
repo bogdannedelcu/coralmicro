@@ -1,8 +1,11 @@
 ---
 name: project_sxga_tpu_sdram_contention_w24_t11_t12
-description: 2026-10-31 — Edge TPU at 1280x960 YUV420 = 13 fps (build 1722); bulk OUT is a flat 35 MB/s = the TPU's USB2 intake; SDRAM contention root cause = EHCI TX FIFO underrun, fixed by SBUSCFG INCR16 + TXFIFOTHRES 16 (+ SEMC BMCR1 weights); ReLU not SiLU on Edge TPU; virtual camera out of board build
+description: "2026-10-31 — Edge TPU at 1280x960 YUV420 = 13 fps (build 1722); bulk OUT is a flat 35 MB/s = the TPU's USB2 intake; SDRAM contention root cause = EHCI TX FIFO underrun, fixed by SBUSCFG INCR16 + TXFIFOTHRES 16 (+ SEMC BMCR1 weights); ReLU not SiLU on Edge TPU; virtual camera out of board build"
 metadata:
+  node_type: memory
   type: project
+  originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
+  modified: 2026-11-01T08:37:39.074Z
 ---
 
 **EXP-s258 / OP-S10-W24-T11 + T12 (builds 1711–1722, board 58eb).**
@@ -38,6 +41,11 @@ metadata:
   flight (semaphores sized to cap — old start() re-primed ONE token), virtual
   camera stubbed on the board build (`SENTAI_VIRTUAL_CAMERA=OFF`),
   `pipeline.trace()` GPT1 timeline ring, `pipeline.infer_stats()` bufs_cap/first_fail.
+- **CORRECTION 2026-11-01 (s260):** the "SXGA 30 fps" row (fps key 30) really runs at
+  **22.6 fps** (CSI CR3.FRMCNT; cloned from 720P/30, 984 lines) and "15" at ~11.3;
+  `sensor_frames()` over-counts ~15 %.  All s258 "camera 30" numbers are at 22.6.
+  True 30 fps = fps key 36 (PLL 0x70, SDK patch 0007); legacy XYUV hangs the board
+  there (147 MB/s CSI), option B (packed YUV420, s260) runs.
 - Lesson: profile before theorising — the PXP-yield and double-buffer hypotheses
   were both wrong; the trace + per-tag URB stats + EHCI error bits found the
   truth in three runs.

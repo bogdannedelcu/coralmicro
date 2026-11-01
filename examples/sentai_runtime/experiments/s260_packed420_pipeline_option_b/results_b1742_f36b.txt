@@ -1,0 +1,1 @@
+{'phase': 'sxga36_b', 'cam_rate': 34.5, 'fps': 13.6, 'frames': 212, 'fail': 0, 'invoke_ms': 71.1, 'cycle_ms': 60.6, 'pxp_ms': 27.2, 'grab_ms': 1.4, 'sem_ms': 31.3, 'prep_total_ms': 60.6, 'prep_frames': 219, 'first_fail': 4294967295, 'urb': {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}}
