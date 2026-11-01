@@ -1,0 +1,118 @@
+
+=== config 1: bus 8 cr18 0x0 cr20 0x0 DT 0x2A (RAW8 tag, 8-bit bus reading data[9:2])
+INIT 0
+    CSI probe: bus=8 CR1=40020912 CR3=00000021 CR18=0000D000 IMAG=050001E0 FBUF=00000000
+  CR20 = R20 0x0
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x2A: WR 0
+  sensor frame rate ~ 0.0
+  no frame (0 bytes)
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 4, 'pretrim_lines': 0, 'grab_fatal': 2, 'vblank_us': 543, 'drain_timeout': 0, 'stale_sk
+
+=== config 2: bus 8 cr18 0x0 cr20 0x20000000 DT 0x2A (RAW8 tag, 8-bit bus reading data[7:0])
+INIT 0
+    CSI probe: bus=8 CR1=40020912 CR3=00000021 CR18=0000D000 IMAG=050001E0 FBUF=00000000
+  CR20 = R20 0x20000000
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x2A: WR 0
+  sensor frame rate ~ 0.0
+  no frame (0 bytes)
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 4, 'pretrim_lines': 0, 'grab_fatal': 2, 'vblank_us': 543, 'drain_timeout': 0, 'stale_sk
+
+=== config 3: bus 8 cr18 0x0 cr20 0x0 DT 0x30 (user-defined 8-bit tag, data[9:2])
+INIT 0
+    CSI probe: bus=8 CR1=40020912 CR3=00000021 CR18=0000D000 IMAG=050001E0 FBUF=00000000
+  CR20 = R20 0x0
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x30: WR 0
+  sensor frame rate ~ 0.0
+  no frame (0 bytes)
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 4, 'pretrim_lines': 0, 'grab_fatal': 2, 'vblank_us': 543, 'drain_timeout': 0, 'stale_sk
+
+=== config 4: bus 8 cr18 0x0 cr20 0x20000000 DT 0x30 (user-defined 8-bit tag, data[7:0])
+INIT 0
+    CSI probe: bus=8 CR1=40020912 CR3=00000021 CR18=0000D000 IMAG=050001E0 FBUF=00000000
+  CR20 = R20 0x20000000
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x30: WR 0
+  sensor frame rate ~ 0.0
+  no frame (0 bytes)
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 4, 'pretrim_lines': 0, 'grab_fatal': 2, 'vblank_us': 543, 'drain_timeout': 0, 'stale_sk
+
+=== config 5: bus 24 cr18 0x0 cr20 0x0 DT 0x2A (RAW8 tag into the legacy 24-bit receiver)
+INIT 0
+  CR20 = R20 0x0
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x2A: WR 0
+  sensor frame rate ~ 34.5
+  bars lane 0: transitions=6 means=[130, 148, 6, 6, 249, 249, 104, 125]
+  bars lane 1: transitions=11 means=[117, 13, 141, 7, 249, 111, 243, 136]
+  bars lane 2: transitions=4 means=[253, 238, 197, 181, 77, 62, 21, 5]
+  bars lane 3: transitions=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+  rows identical to row 0: []
+  first 32 bytes: 8080ff008080ff008080ff008080ff008080ff008080ff008080ff008080ff00
+  natural lane 0: mean=130.4 std=4.7
+  natural lane 1: mean=148.3 std=13.0
+  natural lane 2: mean=69.8 std=42.1
+  natural lane 3: mean=0.0 std=0.0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblank_us': 407, 'drain_timeout': 0, 'stale_s
+
+=== config 6: bus 16 cr18 0x0 cr20 0x0 DT 0x22 (RGB565 tag, 16-bit bus keeps {G8,B8})
+INIT 0
+    CSI probe: bus=16 CR1=40020912 CR3=00000029 CR18=0000D000 IMAG=028001E0 FBUF=00000000
+  CR20 = R20 0x0
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x22: WR 0
+  sensor frame rate ~ 34.5
+  bars lane 0: transitions=6 means=[130, 149, 4, 4, 251, 251, 104, 125]
+  bars lane 1: transitions=11 means=[117, 11, 141, 5, 251, 111, 245, 136]
+  rows identical to row 0: [True, True]
+  first 32 bytes: 8080808080808080808080808080808080808080808080808080808080808080
+  natural lane 0: mean=130.8 std=4.4
+  natural lane 1: mean=147.8 std=13.1
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblank_us': 407, 'drain_timeout': 0, 'stale_s
+
+=== config 7: bus 24 cr18 0x0 cr20 0x0 DT 0x22 (RGB565 tag into the legacy 24-bit receiver)
+INIT 0
+  CR20 = R20 0x0
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x22: WR 0
+  sensor frame rate ~ 34.5
+  bars lane 0: transitions=5 means=[130, 148, 8, 8, 247, 247, 105, 125]
+  bars lane 1: transitions=11 means=[117, 15, 140, 9, 247, 112, 241, 136]
+  bars lane 2: transitions=4 means=[253, 238, 197, 181, 77, 62, 21, 5]
+  bars lane 3: transitions=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+  rows identical to row 0: []
+  first 32 bytes: 8080ff008080ff008080ff008080ff008080ff008080ff008080ff008080ff00
+  natural lane 0: mean=129.7 std=3.1
+  natural lane 1: mean=151.1 std=6.4
+  natural lane 2: mean=152.0 std=41.6
+  natural lane 3: mean=0.0 std=0.0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblank_us': 407, 'drain_timeout': 0, 'stale_s
+
+=== config 8: bus 16 cr18 0x0 cr20 0x0 DT 0x1E (control: YUV422 tag explicit, 16-bit bus)
+INIT 0
+    CSI probe: bus=16 CR1=40020912 CR3=00000029 CR18=0000D000 IMAG=028001E0 FBUF=00000000
+  CR20 = R20 0x0
+  0x4814 before: DT0 0x2a
+  write 0x4814 <- 0x1E: WR 0
+  sensor frame rate ~ 34.5
+  bars lane 0: transitions=5 means=[130, 148, 8, 8, 247, 247, 105, 125]
+  bars lane 1: transitions=11 means=[117, 15, 140, 9, 247, 112, 241, 136]
+  rows identical to row 0: [True, True]
+  first 32 bytes: 8080808080808080808080808080808080808080808080808080808080808080
+  natural lane 0: mean=128.4 std=2.9
+  natural lane 1: mean=151.5 std=6.8
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblank_us': 407, 'drain_timeout': 0, 'stale_s
+
+=== summary
+cfg 1 bus  8 DT 0x2A init 0      fps   0.0 bars  rows_same None
+cfg 2 bus  8 DT 0x2A init 0      fps   0.0 bars  rows_same None
+cfg 3 bus  8 DT 0x30 init 0      fps   0.0 bars  rows_same None
+cfg 4 bus  8 DT 0x30 init 0      fps   0.0 bars  rows_same None
+cfg 5 bus 24 DT 0x2A init 0      fps  34.5 bars 0:6 1:11 2:4 3:0 rows_same []
+cfg 6 bus 16 DT 0x22 init 0      fps  34.5 bars 0:6 1:11 rows_same [True, True]
+cfg 7 bus 24 DT 0x22 init 0      fps  34.5 bars 0:5 1:11 2:4 3:0 rows_same []
+cfg 8 bus 16 DT 0x1E init 0      fps  34.5 bars 0:5 1:11 rows_same [True, True]
+log: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s259_csi_mipi_16bit_yuv422/dt_b1723.log
+rc=0

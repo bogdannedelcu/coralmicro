@@ -161,6 +161,24 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_save_jpeg_obj, 1, 2, mod_sentai_cam_save_jpeg);
 
+// sentai.camera.save_raw(path, offset=0, nbytes=w*h*4) -> int (bytes written)
+// EXP-s259: dump a slice of the latest raw framebuffer as stored by the CSI
+// receiver (no conversion) to the user partition; the host reconstructs it.
+extern int sentai_cam_save_raw(const char* path, uint32_t offset, uint32_t nbytes);
+static mp_obj_t mod_sentai_cam_save_raw(size_t n_args, const mp_obj_t *args) {
+    _fs_check_usb();
+    const char* path = mp_obj_str_get_str(args[0]);
+    uint32_t offset = (n_args > 1) ? (uint32_t)mp_obj_get_int(args[1]) : 0u;
+    uint32_t nbytes = (n_args > 2) ? (uint32_t)mp_obj_get_int(args[2])
+                                   : (uint32_t)(sentai_cam_get_width() * sentai_cam_get_height() * 4);
+    int rc = sentai_cam_save_raw(path, offset, nbytes);
+    if (rc < 0) {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("save_raw failed"));
+    }
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_save_raw_obj, 1, 3, mod_sentai_cam_save_raw);
+
 // sentai.camera.resolution() -> tuple (width, height) - current capture resolution
 static mp_obj_t mod_sentai_cam_resolution(void) {
     mp_obj_t items[2];
@@ -226,6 +244,55 @@ static mp_obj_t mod_sentai_cam_yuv_mode(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_yuv_mode_obj,
                                             0, 1, mod_sentai_cam_yuv_mode);
+
+// sentai.camera.csi_mode([bus, cr18_or]) -> (bus, cr18_or, CR1, CR3, CR18)
+// EXP-s259 / W24-T14 capture-layer probe: CSI receiver bus width (24 = legacy
+// 4 BPP, 16 or 8 = YUYV 2 BPP) plus raw CSICR18 bits OR'd in after CSI_Init()
+// (DATA_FROM_MIPI 1<<22, MIPI_YU_SWAP 1<<21, MIPI_DOUBLE_CMPNT 1<<20,
+// MIPI_DATA_FORMAT(dt) dt<<25).  Call BEFORE camera.init(); the last three
+// values are the CSI registers captured at the most recent init.  Raises
+// ValueError on a bus width other than 24/16/8.
+// Extra optional args: cr20_or (CSICR20 bits: QRCODE_EN 1<<31, QR_DATA_FORMAT(f)
+// f<<9, 10BIT_NEW_EN 1<<29) and wdiv (1 or 2: receiver width = sensor width /
+// wdiv, for stream formats carrying two pixels per pixel-link cycle).  The 8-bit
+// bus stores 1 byte per cycle.  Returns (bus, cr18_or, CR1, CR3, CR18, cr20_or, wdiv).
+extern int  sentai_camera_set_csi_mode(uint32_t bus, uint32_t cr18_or, uint32_t cr20_or, uint32_t wdiv);
+extern void sentai_camera_get_csi_mode(uint32_t* out7);
+static mp_obj_t mod_sentai_cam_csi_mode(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) {
+        uint32_t bus  = (uint32_t)mp_obj_get_int(args[0]);
+        uint32_t b18  = (n_args >= 2) ? (uint32_t)mp_obj_get_int_truncated(args[1]) : 0u;
+        uint32_t b20  = (n_args >= 3) ? (uint32_t)mp_obj_get_int_truncated(args[2]) : 0u;
+        uint32_t wdiv = (n_args >= 4) ? (uint32_t)mp_obj_get_int(args[3]) : 1u;
+        if (sentai_camera_set_csi_mode(bus, b18, b20, wdiv) != 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("bus must be 24, 16 or 8; wdiv 1 or 2"));
+        }
+    }
+    uint32_t v[7];
+    sentai_camera_get_csi_mode(v);
+    mp_obj_t t[7];
+    for (int i = 0; i < 7; i++) t[i] = mp_obj_new_int_from_uint(v[i]);
+    return mp_obj_new_tuple(7, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_csi_mode_obj,
+                                            0, 4, mod_sentai_cam_csi_mode);
+
+// sentai.camera.csi_geom(w_cycles, h_lines) -> int.  EXP-s259: receiver-only
+// geometry override (0, 0 = derive from the sensor geometry); set before init().
+extern int sentai_camera_set_csi_geom(uint32_t w, uint32_t h);
+static mp_obj_t mod_sentai_cam_csi_geom(mp_obj_t w_obj, mp_obj_t h_obj) {
+    return mp_obj_new_int(sentai_camera_set_csi_geom((uint32_t)mp_obj_get_int(w_obj),
+                                                     (uint32_t)mp_obj_get_int(h_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_csi_geom_obj, mod_sentai_cam_csi_geom);
+
+// sentai.camera.csi_settle(v) -> int.  EXP-s259: MIPI D-PHY T-HSSETTLE override
+// for the next init() (0 = table lookup keyed on resolution/fps).
+extern int sentai_camera_set_csi_settle(uint32_t v);
+static mp_obj_t mod_sentai_cam_csi_settle(mp_obj_t v_obj) {
+    return mp_obj_new_int(sentai_camera_set_csi_settle((uint32_t)mp_obj_get_int(v_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_csi_settle_obj, mod_sentai_cam_csi_settle);
 
 // sentai.camera.yuv420_test(y_path, uv_path) -> int (0 ok).  s240/YUV420 Phase-3
 // diagnostic: split the current XYUV camera frame into Y + UV planes via PXP and
@@ -1008,12 +1075,16 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_jpeg),       MP_ROM_PTR(&mod_sentai_cam_jpeg_obj) },
     { MP_ROM_QSTR(MP_QSTR_to_tensor),  MP_ROM_PTR(&mod_sentai_cam_to_tensor_obj) },
     { MP_ROM_QSTR(MP_QSTR_save_jpeg),  MP_ROM_PTR(&mod_sentai_cam_save_jpeg_obj) },
+    { MP_ROM_QSTR(MP_QSTR_save_raw),   MP_ROM_PTR(&mod_sentai_cam_save_raw_obj) },
     { MP_ROM_QSTR(MP_QSTR_resolution),     MP_ROM_PTR(&mod_sentai_cam_resolution_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_resolution), MP_ROM_PTR(&mod_sentai_cam_set_resolution_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_hw),         MP_ROM_PTR(&mod_sentai_cam_set_hw_obj) },
     { MP_ROM_QSTR(MP_QSTR_native_res), MP_ROM_PTR(&mod_sentai_cam_native_res_obj) },
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
     { MP_ROM_QSTR(MP_QSTR_yuv_mode),   MP_ROM_PTR(&mod_sentai_cam_yuv_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_csi_mode),   MP_ROM_PTR(&mod_sentai_cam_csi_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_csi_geom),   MP_ROM_PTR(&mod_sentai_cam_csi_geom_obj) },
+    { MP_ROM_QSTR(MP_QSTR_csi_settle), MP_ROM_PTR(&mod_sentai_cam_csi_settle_obj) },
     { MP_ROM_QSTR(MP_QSTR_yuv420_test), MP_ROM_PTR(&mod_sentai_cam_yuv420_test_obj) },
     { MP_ROM_QSTR(MP_QSTR_play),       MP_ROM_PTR(&mod_sentai_cam_play_obj) },
     { MP_ROM_QSTR(MP_QSTR_replay),     MP_ROM_PTR(&mod_sentai_cam_replay_obj) },

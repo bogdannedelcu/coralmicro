@@ -2556,6 +2556,28 @@ extern "C" int sentai_cam_peek_first_row(uint8_t* dst, int len) {
   return len;
 }
 
+// EXP-s259 / W24-T14: dump `nbytes` of the most-recent camera framebuffer,
+// starting at `offset`, to a file on the user partition -- whatever the CSI
+// receiver stored (XYUV, packed YUV420, Y8 ...).  The host reconstructs the
+// image.  The slot is held during the SD write (~1 s/MB; the camera has four
+// buffers).  Returns bytes written or negative.
+extern "C" int sentai_cam_save_raw(const char* path, uint32_t offset, uint32_t nbytes) {
+  if (!path || nbytes == 0) return -1;
+  const uint32_t cap = (uint32_t)CAM_MAX_WIDTH * (uint32_t)CAM_MAX_HEIGHT * 4u;
+  if (offset >= cap) return -3;
+  if (offset + nbytes > cap) nbytes = cap - offset;
+  uint8_t* raw = nullptr;
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  if (idx < 0 || !raw) return -2;
+  int ok = FxUserWriteFile(path, raw + offset, (size_t)nbytes);
+  if (sentai_virtual_camera_is_frame_idx(idx)) {
+    sentai_virtual_camera_return_raw(idx);
+  } else {
+    coralmicro::CameraTask::GetSingleton()->ReturnRawFrame(idx);
+  }
+  return ok ? (int)nbytes : -4;
+}
+
 // Build #935 — single-grab 5-row B-channel sample @ col 40.
 // Returns the B byte at col 40 from rows {0, H/4, H/2, 3H/4, H-1}
 // of the SAME framebuffer (single dequeue/return).  This is the

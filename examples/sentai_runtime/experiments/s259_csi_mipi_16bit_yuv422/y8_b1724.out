@@ -1,0 +1,103 @@
+
+=== y8_8_new: bus 8 cr20 0x20000000 wdiv 1 0x4300<-0x10 (Y8 sensor, 8-bit receiver, data[7:0] -> expect 1 B/px luma)
+INIT 0
+    CSI probe: bus=8 wdiv=1 CR1=40020912 CR3=00000021 CR18=0000D000 CR20=20000000 IMAG=028001E0 FBUF=00000000
+  0x4300 <- WR 0
+  frame rate ~ 34.5
+  bars: 4096 B = 6 rows of 640 B; first 32: 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f
+    row 0: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    row 1: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    row 2: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    row 3: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    rows == row0: [True, True, True, True, True]
+  natural row 0: L0 36±16
+  natural row 1: L0 35±16
+
+=== y8_8_raw: bus 8 cr20 0x00000000 wdiv 1 0x4300<-0x10 (Y8 sensor, 8-bit receiver, data[9:2])
+INIT 0
+    CSI probe: bus=8 wdiv=1 CR1=40020912 CR3=00000021 CR18=0000D000 CR20=00000000 IMAG=028001E0 FBUF=00000000
+  0x4300 <- WR 0
+  frame rate ~ 34.5
+  bars: 4096 B = 6 rows of 640 B; first 32: 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f
+    row 0: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    row 1: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    row 2: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    row 3: L0 t=5 m=[61, 46, 7, 53, 13, 60, 21, 5]
+    rows == row0: [True, True, True, True, True]
+  natural row 0: L0 35±16
+  natural row 1: L0 34±16
+
+=== gray_8: bus 8 cr20 0xA0000800 wdiv 1 0x4300<-0x3F (YUV422 stream, CSI gray-scale converter, data[7:0])
+INIT 0
+    CSI probe: bus=8 wdiv=1 CR1=40020912 CR3=00000021 CR18=0000D000 CR20=A0000800 IMAG=028001E0 FBUF=00000000
+  frame rate ~ 0.0
+  no frame (0 B)
+
+=== gray_8b: bus 8 cr20 0x80000800 wdiv 1 0x4300<-0x3F (YUV422 stream, CSI gray-scale converter, data[9:2])
+INIT 0
+    CSI probe: bus=8 wdiv=1 CR1=40020912 CR3=00000021 CR18=0000D000 CR20=80000800 IMAG=028001E0 FBUF=00000000
+  frame rate ~ 0.0
+  no frame (0 B)
+
+=== gray_24: bus 24 cr20 0x80000800 wdiv 1 0x4300<-0x3F (YUV422 stream, gray-scale converter, 24-bit receiver)
+INIT 0
+    CSI probe: bus=24 wdiv=1 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=80000800 IMAG=028001E0 FBUF=00000000
+  frame rate ~ 0.0
+  no frame (0 B)
+
+=== 420_24_w2: bus 24 cr20 0x00000000 wdiv 2 0x4300<-0x5F (YUV420-MIPI stream, 24-bit receiver, half width -> packed 2 B/px?)
+INIT 0
+    CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=014001E0 FBUF=00000000
+  0x4300 <- WR 0
+  frame rate ~ 34.5
+  bars: 4096 B = 3 rows of 1280 B; first 32: 80ffff0080ffff0080ffff0080ffff0080ffff0080ffff0080ffff0080ffff00
+    row 0: L0 t=11 m=[117, 17, 140, 11, 245, 111, 239, 136] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 20, 4] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    row 1: L0 t=5 m=[130, 147, 10, 10, 245, 245, 105, 125] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 20, 4] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    row 2: L0 t=11 m=[117, 17, 140, 11, 245, 111, 239, 136] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 20, 4] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: [False, True]
+  natural row 0: L0 151±6  L1 159±40  L2 159±40  L3 0±0
+  natural row 1: L0 130±3  L1 160±40  L2 159±40  L3 0±0
+
+=== 420_16_w2: bus 16 cr20 0x00000000 wdiv 2 0x4300<-0x5F (YUV420-MIPI stream, 16-bit receiver, half width)
+INIT 0
+    CSI probe: bus=16 wdiv=2 CR1=40020912 CR3=00000029 CR18=0000D000 CR20=00000000 IMAG=014001E0 FBUF=00000000
+  0x4300 <- WR 0
+  frame rate ~ 34.5
+  bars: 4096 B = 6 rows of 640 B; first 32: 80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff80ff
+    row 0: L0 t=11 m=[117, 17, 140, 11, 245, 111, 239, 136] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5]
+    row 1: L0 t=5 m=[130, 147, 10, 10, 245, 245, 105, 125] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5]
+    row 2: L0 t=11 m=[117, 17, 140, 11, 245, 111, 239, 136] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5]
+    row 3: L0 t=5 m=[130, 147, 10, 10, 245, 245, 105, 125] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5]
+    rows == row0: [False, True, False, True, False]
+  natural row 0: L0 151±6  L1 159±40
+  natural row 1: L0 130±3  L1 160±40
+
+=== 420e_24_w2: bus 24 cr20 0x00000000 wdiv 2 0x4300<-0x5E (YUV420-MIPI (VYY/UYY) stream, 24-bit receiver, half width)
+INIT 0
+    CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=014001E0 FBUF=00000000
+  0x4300 <- WR 0
+  frame rate ~ 34.5
+  bars: 4096 B = 3 rows of 1280 B; first 32: 80ffff0080ffff0080ffff0080ffff0080ffff0080ffff0080ffff0080ffff00
+    row 0: L0 t=5 m=[130, 148, 8, 8, 247, 247, 105, 125] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 20, 4] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    row 1: L0 t=11 m=[117, 15, 140, 9, 247, 112, 241, 136] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 20, 4] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    row 2: L0 t=5 m=[130, 148, 8, 8, 247, 247, 105, 125] | L1 t=3 m=[253, 238, 197, 182, 77, 62, 21, 5] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 20, 4] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: [False, True]
+  natural row 0: L0 130±3  L1 155±39  L2 155±40  L3 0±0
+  natural row 1: L0 151±7  L1 155±39  L2 155±40  L3 0±0
+
+=== y8_corr: bus 24 cr20 0x00000000 wdiv 1 0x4300<-0x10 (legacy receiver: Y lane of YUV422 vs Y8 row, same scene)
+INIT 0
+  legacy Y lane mean 64.0, Y8 lane mean 140.9, corr 0.234
+
+=== summary
+y8_8_new    init 0      fps  34.5 
+y8_8_raw    init 0      fps  34.5 
+gray_8      init 0      fps   0.0 
+gray_8b     init 0      fps   0.0 
+gray_24     init 0      fps   0.0 
+420_24_w2   init 0      fps  34.5 
+420_16_w2   init 0      fps  34.5 
+420e_24_w2  init 0      fps  34.5 
+y8_corr     init 0      fps  -1.0 corr 0.234
+log: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s259_csi_mipi_16bit_yuv422/y8_b1724.log
+rc=0

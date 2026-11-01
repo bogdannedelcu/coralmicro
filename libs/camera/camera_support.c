@@ -157,6 +157,69 @@ volatile int g_sentai_camera_yuv_mode = 0;
 void sentai_camera_set_yuv_mode(int on) { g_sentai_camera_yuv_mode = on ? 1 : 0; }
 int  sentai_camera_get_yuv_mode(void)   { return g_sentai_camera_yuv_mode; }
 
+/* EXP-s259 / OP-S10-W24-T14 (2026-11-01): CSI receiver bus-width hook.
+ * The MIPI->VIDEO_MUX pixel link always delivers 24-bit pixels, so the
+ * legacy receiver (24-bit bus + PARALLEL24_EN) stores 4 bytes/pixel.  The
+ * CSI block itself documents a MIPI-aware packing path in CSICR18
+ * (DATA_FROM_MIPI, MIPI_DATA_FORMAT, MIPI_DOUBLE_CMPNT, MIPI_YU_SWAP; RM
+ * Rev.3 §45.6.16) that the SDK never programs.  This hook lets an
+ * experiment select the 16-bit (or 8-bit) bus with 2 bytes/pixel and OR
+ * arbitrary CR18 bits in after CSI_Init() (which rewrites CR18) and
+ * before CSI_Start() (which preserves everything but MASK_OPTION).
+ *   bus:      24 (default, legacy XRGB/XYUV 4 BPP), 16 or 8 (YUYV 2 BPP)
+ *   cr18_or:  raw CSICR18 bits OR'd in, 0 = none
+ * Only YUV mode is meaningful with bus != 24.  Set BEFORE camera.init();
+ * read only inside BOARD_InitCamera().  Downstream consumers (PXP, JPEG,
+ * flow) still assume 4 BPP -- this is a capture-layer probe, nothing else. */
+volatile uint32_t g_sentai_csi_bus_bits = 24;
+volatile uint32_t g_sentai_csi_cr18_or  = 0;
+volatile uint32_t g_sentai_csi_cr20_or  = 0;   /* CSICR20 bits OR'd in (gray-scale mode, 10BIT_NEW_EN) */
+volatile uint32_t g_sentai_csi_wdiv     = 1;   /* receiver width = sensor width / wdiv (pixel-link cycles per line) */
+volatile uint32_t g_sentai_csi_cr1_last = 0, g_sentai_csi_cr3_last = 0,
+                  g_sentai_csi_cr18_last = 0;
+
+int sentai_camera_set_csi_mode(uint32_t bus, uint32_t cr18_or, uint32_t cr20_or, uint32_t wdiv) {
+    if (bus != 24 && bus != 16 && bus != 8) return -1;
+    if (wdiv != 1 && wdiv != 2) return -2;
+    g_sentai_csi_bus_bits = bus;
+    g_sentai_csi_cr18_or  = cr18_or;
+    g_sentai_csi_cr20_or  = cr20_or;
+    g_sentai_csi_wdiv     = wdiv;
+    return 0;
+}
+void sentai_camera_get_csi_mode(uint32_t* out7) {
+    out7[0] = g_sentai_csi_bus_bits;
+    out7[1] = g_sentai_csi_cr18_or;
+    out7[2] = g_sentai_csi_cr1_last;
+    out7[3] = g_sentai_csi_cr3_last;
+    out7[4] = g_sentai_csi_cr18_last;
+    out7[5] = g_sentai_csi_cr20_or;
+    out7[6] = g_sentai_csi_wdiv;
+}
+/* Receiver-only geometry override (pixel-link cycles per line, lines per
+ * frame); 0 = derive from the sensor geometry / wdiv.  Lets an experiment
+ * re-size the OV5640 ISP output (0x3808..0x380B) after init and still have
+ * the CSI DMA expect the new line length. */
+volatile uint32_t g_sentai_csi_rx_w = 0, g_sentai_csi_rx_h = 0;
+int sentai_camera_set_csi_geom(uint32_t w, uint32_t h) {
+    if (w > 1280u || h > 960u) return -1;   /* CAM_MAX_WIDTH/HEIGHT; literal for the cm4 TU */
+    g_sentai_csi_rx_w = w; g_sentai_csi_rx_h = h;
+    return 0;
+}
+/* D-PHY T-HSSETTLE override for the next init (0 = table lookup), so an
+ * experiment can re-clock the sensor's MIPI PLL after init and still have
+ * the receiver sample the new lane rate. */
+volatile uint32_t g_sentai_csi_hs_settle = 0;
+int sentai_camera_set_csi_settle(uint32_t v) {
+    if (v > 0xFF) return -1;
+    g_sentai_csi_hs_settle = v;
+    return 0;
+}
+/* Bytes per stored pixel for the probe receiver: 24-bit bus 4, 16-bit 2, 8-bit 1. */
+uint32_t sentai_camera_csi_probe_bpp(void) {
+    return g_sentai_csi_bus_bits == 24 ? 4u : (g_sentai_csi_bus_bits == 16 ? 2u : 1u);
+}
+
 /* Build #942 — IN-FLIGHT-AT-FLIP dirty-buffer marker.
  *
  * When the CSI ISR flips the MUX, the buffer currently being filled
@@ -936,6 +999,10 @@ status_t BOARD_InitMipiCsi(void)
             break;
         }
     }
+    if (g_sentai_csi_hs_settle != 0) {
+        csi2rxConfig.tHsSettle_EscClk = (uint8_t)g_sentai_csi_hs_settle;   /* EXP-s259 override */
+        printf("CSI2RX: T-HSSETTLE override 0x%02lX\r\n", g_sentai_csi_hs_settle);
+    }
 
     CSI2RX_Init(MIPI_CSI2RX, &csi2rxConfig);
     return kStatus_Success;
@@ -1014,8 +1081,50 @@ status_t BOARD_InitCamera(void)
     cameraConfig.controlFlags               = DEMO_CAMERA_CONTROL_FLAGS;
     cameraConfig.framePerSec                = g_runtime_fps;
 
+    /* EXP-s259: 2 bytes/pixel receiver probe (see g_sentai_csi_bus_bits). */
+    csiResource.dataBus = kCSI_DataBus24Bit;
+    {
+        /* The receiver counts pixel-link cycles per line; wdiv=2 declares half
+         * the sensor width (for stream formats that carry two pixels per cycle,
+         * e.g. legacy YUV420).  The stored row is then (w/wdiv)*bpp bytes. */
+        uint32_t rw  = g_runtime_cam_w / g_sentai_csi_wdiv;
+        uint32_t rh  = g_runtime_cam_h;
+        uint32_t bpp = sentai_camera_csi_probe_bpp();
+        if (g_sentai_csi_rx_w && g_sentai_csi_rx_h) { rw = g_sentai_csi_rx_w; rh = g_sentai_csi_rx_h; }
+        if (g_sentai_csi_bus_bits == 16) {
+            csiResource.dataBus      = kCSI_DataBus16Bit;
+            cameraConfig.pixelFormat = kVIDEO_PixelFormatYUYV;
+        } else if (g_sentai_csi_bus_bits == 8) {
+            csiResource.dataBus      = kCSI_DataBus8Bit;
+            cameraConfig.pixelFormat = kVIDEO_PixelFormatRAW8;
+        }
+        if (g_sentai_csi_bus_bits != 24 || g_sentai_csi_wdiv != 1 || g_sentai_csi_rx_w) {
+            cameraConfig.bytesPerPixel              = bpp;
+            cameraConfig.resolution                 = FSL_VIDEO_RESOLUTION(rw, rh);
+            cameraConfig.frameBufferLinePitch_Bytes = rw * bpp;
+        }
+    }
+
     status = CAMERA_RECEIVER_Init(&cameraReceiver, &cameraConfig, NULL, NULL);
     printf("CAMERA_RECEIVER_Init = %ld\r\n", status);
+
+    if (g_sentai_csi_cr18_or != 0) {
+        /* CSI_Init() just rewrote CR18 (AHB_HPROT only); CSI_Start() later
+         * preserves all bits except MASK_OPTION, so OR ours in here. */
+        CSI->CR18 |= g_sentai_csi_cr18_or;
+    }
+    if (g_sentai_csi_cr20_or != 0) {
+        CSI->CR20 |= g_sentai_csi_cr20_or;
+    }
+    g_sentai_csi_cr1_last  = CSI->CR1;
+    g_sentai_csi_cr3_last  = CSI->CR3;
+    g_sentai_csi_cr18_last = CSI->CR18;
+    if (g_sentai_csi_bus_bits != 24 || g_sentai_csi_cr18_or != 0 ||
+        g_sentai_csi_cr20_or != 0 || g_sentai_csi_wdiv != 1 || g_sentai_csi_rx_w) {
+        printf("CSI probe: bus=%lu wdiv=%lu CR1=%08lX CR3=%08lX CR18=%08lX CR20=%08lX IMAG=%08lX FBUF=%08lX\r\n",
+               g_sentai_csi_bus_bits, g_sentai_csi_wdiv, CSI->CR1, CSI->CR3, CSI->CR18,
+               CSI->CR20, CSI->IMAG_PARA, CSI->FBUF_PARA);
+    }
 
     /* sentai TPU-pipeline fix (2026-04-22): CSI_IRQHandler runs at
      * the ARM NVIC default priority = 0 = HIGHER than USB_OTG2

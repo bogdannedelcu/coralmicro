@@ -1,0 +1,142 @@
+
+=== config y8_24: bus 24 0x4300<-0x10 (Y8 into the legacy 24-bit receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x10
+  sensor frame rate ~ 34.5
+  bars: 4096 bytes, 1 rows of 2560 B; first 32: fc000000fc000000fc000000fc000000fc000000fc000000fc000000fc000000
+    row 0: L0 t=13 m=[247, 186, 31, 214, 55, 242, 84, 20] | L1 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0] | L2 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: []
+  natural row 0: L0 140±64  L1 0±0  L2 0±0  L3 0±0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config y8_16: bus 16 0x4300<-0x10 (Y8 into the 16-bit receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x10
+  sensor frame rate ~ 34.5
+  bars: 4096 bytes, 3 rows of 1280 B; first 32: fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00fc00
+    row 0: L0 t=13 m=[247, 186, 31, 214, 55, 242, 84, 20] | L1 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    row 1: L0 t=13 m=[247, 186, 31, 214, 55, 242, 84, 20] | L1 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    row 2: L0 t=13 m=[247, 186, 31, 214, 55, 242, 84, 20] | L1 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: [True, True]
+  natural row 0: L0 141±64  L1 0±0
+  natural row 1: L0 140±63  L1 0±0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config y8_8: bus 8 0x4300<-0x10 (Y8 into the 8-bit receiver (2 cycles/px))
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x10
+  sensor frame rate ~ 0.0
+  no frame (0 bytes)
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 4, 'pretrim_lines': 0, 'grab_fatal': 2, 'vblank
+
+=== config 420m_24: bus 24 0x4300<-0x5F (YUV420 MIPI-only (seq F) into the legacy receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x5f
+  sensor frame rate ~ 0.0
+  bars: 4096 bytes, 1 rows of 2560 B; first 32: 829bae00829bb000839ab000839aaf00819baf00819baf008098b0008098af00
+    row 0: L0 t=0 m=[128, 127, 128, 128, 128, 133, 129, 130] | L1 t=0 m=[154, 154, 154, 154, 153, 145, 152, 140] | L2 t=16 m=[173, 179, 179, 171, 183, 152, 152, 59] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: []
+  natural row 0: L0 130±3  L1 150±6  L2 156±42  L3 0±0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 1, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config 420m_16: bus 16 0x4300<-0x5F (YUV420 MIPI-only (seq F) into the 16-bit receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x5f
+  sensor frame rate ~ 0.0
+  bars: 4096 bytes, 3 rows of 1280 B; first 32: 7f8d7f8d828a828a8387838782878287858c858c878d878d868c868c85888588
+    row 0: L0 t=0 m=[130, 128, 128, 137, 129, 129, 128, 130] | L1 t=1 m=[136, 146, 162, 140, 150, 162, 148, 155]
+    row 1: L0 t=0 m=[130, 128, 128, 136, 129, 128, 128, 130] | L1 t=0 m=[136, 146, 163, 140, 151, 163, 148, 154]
+    row 2: L0 t=0 m=[129, 129, 129, 136, 129, 129, 128, 130] | L1 t=0 m=[136, 145, 162, 140, 151, 163, 148, 153]
+    rows == row0: [False, False]
+  natural row 0: L0 131±5  L1 149±13
+  natural row 1: L0 131±5  L1 149±13
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 6, 'grab_retry': 1, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config 420me_24: bus 24 0x4300<-0x5E (YUV420 MIPI-only (seq E, VYY/UYY) into the legacy receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x5e
+  sensor frame rate ~ 0.0
+  bars: 4096 bytes, 1 rows of 2560 B; first 32: 8098a9008098ab008299ab008299aa00849aaa00849aa9008099a9008099a700
+    row 0: L0 t=0 m=[128, 127, 127, 127, 128, 133, 129, 130] | L1 t=0 m=[154, 155, 154, 154, 153, 145, 151, 140] | L2 t=12 m=[168, 173, 174, 166, 178, 147, 146, 55] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: []
+  natural row 0: L0 129±3  L1 152±6  L2 152±42  L3 0±0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 1, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config 420me_16: bus 16 0x4300<-0x5E (YUV420 MIPI-only (seq E) into the 16-bit receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x5e
+  sensor frame rate ~ 0.0
+  bars: 4096 bytes, 3 rows of 1280 B; first 32: 82828282828582858184818480898089808c808c8489848985858585848a848a
+    row 0: L0 t=0 m=[130, 129, 129, 137, 130, 128, 129, 131] | L1 t=0 m=[134, 145, 162, 137, 150, 162, 146, 153]
+    row 1: L0 t=0 m=[131, 129, 129, 137, 129, 129, 129, 131] | L1 t=0 m=[133, 141, 162, 138, 150, 162, 145, 153]
+    row 2: L0 t=0 m=[131, 129, 129, 137, 129, 129, 128, 132] | L1 t=0 m=[133, 141, 162, 139, 150, 162, 145, 152]
+    rows == row0: [False, False]
+  natural row 0: L0 130±4  L1 149±13
+  natural row 1: L0 130±4  L1 148±13
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 1, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config 420m_8: bus 8 0x4300<-0x5F (YUV420 MIPI-only (seq F) into the 8-bit receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x5f
+  sensor frame rate ~ 0.0
+  no frame (0 bytes)
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 4, 'pretrim_lines': 0, 'grab_fatal': 2, 'vblank
+
+=== config 420_24: bus 24 0x4300<-0x4F (YUV420 (seq F) into the legacy receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x4f
+  sensor frame rate ~ 0.0
+  bars: 4096 bytes, 1 rows of 2560 B; first 32: 809aa900809aa8007e9da9007e9da90081a1a80081a1a800809ea800809ea900
+    row 0: L0 t=0 m=[127, 127, 126, 127, 126, 132, 128, 128] | L1 t=0 m=[156, 156, 156, 156, 155, 146, 153, 141] | L2 t=17 m=[168, 173, 173, 165, 178, 147, 146, 55] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: []
+  natural row 0: L0 129±3  L1 151±6  L2 151±42  L3 0±0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 1, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config 420_16: bus 16 0x4300<-0x4F (YUV420 (seq F) into the 16-bit receiver)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x4f
+  sensor frame rate ~ 0.0
+  bars: 4096 bytes, 3 rows of 1280 B; first 32: 82978297819c819c809c809c809c809c809c809c80988098819b819b7f997f99
+    row 0: L0 t=0 m=[129, 128, 128, 128, 128, 134, 129, 129] | L1 t=0 m=[155, 155, 154, 155, 154, 145, 152, 139]
+    row 1: L0 t=0 m=[128, 128, 128, 128, 128, 134, 130, 129] | L1 t=0 m=[155, 155, 154, 154, 154, 145, 152, 140]
+    row 2: L0 t=0 m=[128, 128, 127, 128, 128, 134, 130, 129] | L1 t=0 m=[156, 155, 154, 154, 154, 145, 152, 140]
+    rows == row0: [False, False]
+  natural row 0: L0 129±3  L1 151±6
+  natural row 1: L0 129±3  L1 150±7
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 1, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== config 422_24: bus 24 0x4300<-0x3F (control: YUV422 UYVY legacy)
+INIT 0
+  0x4300 before: F0 0x3f
+  write: WR 0 F1 0x3f
+  sensor frame rate ~ 34.5
+  bars: 4096 bytes, 1 rows of 2560 B; first 32: 8080ff008080ff008080ff008080ff008080ff008080ff008080ff008080ff00
+    row 0: L0 t=6 m=[130, 149, 4, 4, 251, 251, 104, 125] | L1 t=11 m=[117, 11, 141, 5, 251, 111, 245, 136] | L2 t=4 m=[253, 238, 197, 181, 77, 62, 21, 5] | L3 t=0 m=[0, 0, 0, 0, 0, 0, 0, 0]
+    rows == row0: []
+  natural row 0: L0 130±4  L1 147±13  L2 65±41  L3 0±0
+   ST {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblan
+
+=== summary
+y8_24     bus 24 0x4300=0x10 init 0      fps  34.5 rows_same []
+y8_16     bus 16 0x4300=0x10 init 0      fps  34.5 rows_same [True, True]
+y8_8      bus  8 0x4300=0x10 init 0      fps   0.0 rows_same None
+420m_24   bus 24 0x4300=0x5F init 0      fps   0.0 rows_same []
+420m_16   bus 16 0x4300=0x5F init 0      fps   0.0 rows_same [False, False]
+420me_24  bus 24 0x4300=0x5E init 0      fps   0.0 rows_same []
+420me_16  bus 16 0x4300=0x5E init 0      fps   0.0 rows_same [False, False]
+420m_8    bus  8 0x4300=0x5F init 0      fps   0.0 rows_same None
+420_24    bus 24 0x4300=0x4F init 0      fps   0.0 rows_same []
+420_16    bus 16 0x4300=0x4F init 0      fps   0.0 rows_same [False, False]
+422_24    bus 24 0x4300=0x3F init 0      fps  34.5 rows_same []
+log: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s259_csi_mipi_16bit_yuv422/fmt_b1723.log
+rc=0

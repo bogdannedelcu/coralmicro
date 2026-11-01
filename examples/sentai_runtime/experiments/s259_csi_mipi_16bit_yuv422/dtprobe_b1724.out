@@ -1,0 +1,50 @@
+init INIT 0
+PAYLOAD_0 = 0x0  PAYLOAD_1 = 0x0
+baseline fps 34.5
+    baseline: first 16 B 8080ff008080ff008080ff008080ff00
+      lane 0 t=6 means=[130, 149, 4, 4, 251, 251, 104, 125]
+      lane 1 t=11 means=[117, 11, 141, 5, 251, 111, 245, 136]
+      lane 2 t=4 means=[253, 238, 197, 181, 77, 62, 21, 5]
+      lane 3 t=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+
+-- disable YUV422_8BIT payload
+fps 0.0 (0 => the stream is tagged 0x1E)
+
+-- 0x4814 <- 0x22 (RGB565) with YUV422 disabled
+   wr WR 0 rd RD 0x22
+   fps 0.0
+    RGB565: no frame (0 B)
+
+-- 0x4814 <- 0x24 (RGB888) with YUV422 disabled
+   wr WR 0 rd RD 0x24
+   fps 0.0
+    RGB888: no frame (0 B)
+
+-- 0x4814 <- 0x30 (UDEF30) with YUV422 disabled
+   wr WR 0 rd RD 0x30
+   fps 0.0
+    UDEF30: no frame (0 B)
+
+-- restore payload enable; 0x4814 back to 0x2A
+fps 34.5
+
+-- sensor RAW mode (0x4300=0x00, 0x501F=0x01), YUV422 payload enabled
+   3034 (bit mode) = B 0x18
+   fps 34.5
+    RAW: first 16 B fc000000fc000000fc000000fc000000
+      lane 0 t=494 means=[244, 178, 196, 127, 126, 55, 80, 19]
+      lane 1 t=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+      lane 2 t=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+      lane 3 t=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+   PAYLOAD_1 UNSUPPORTED disabled:
+   fps 34.5
+   RX status regs: BIT_ERR 0x80 IRQ_STATUS 0x129
+
+back to YUV422: fps 35.0
+    YUV422 again: first 16 B 8080ff008080ff008080ff008080ff00
+      lane 0 t=6 means=[130, 149, 4, 4, 251, 251, 104, 125]
+      lane 1 t=11 means=[117, 11, 141, 5, 251, 111, 245, 136]
+      lane 2 t=4 means=[253, 238, 197, 181, 77, 62, 21, 5]
+      lane 3 t=0 means=[0, 0, 0, 0, 0, 0, 0, 0]
+log: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s259_csi_mipi_16bit_yuv422/dtprobe_b1724.log
+rc=0

@@ -67,6 +67,10 @@ sentai
 │   ├── resolution()
 │   ├── set_resolution(w, h)
 - `sentai.camera.set_hw(w, h)` → int. Select the SENSOR geometry before `init()`: `(640, 480)` (default) or `(1280, 960)` SXGA (15/30 fps rows). 0 ok, -1 unsupported, -2 camera already initialised (needs `sys.reset()`). W24-T11.
+- `sentai.camera.csi_mode([bus, cr18_or, cr20_or, wdiv])` → tuple `(bus, cr18_or, CR1, CR3, CR18, cr20_or, wdiv)`. EXP-s259 capture-layer probe, set before `init()`: CSI receiver data bus 24 (default, 4 B/px XRGB/XYUV), 16 (2 B/px) or 8 (1 B/px); raw CSICR18 / CSICR20 bits OR'd in after `CSI_Init()`; `wdiv` 2 halves the receiver width for streams carrying two pixels per pixel-link cycle. Downstream consumers (PXP, JPEG, flow, pipeline) still assume 4 B/px — diagnostics only. W24-T14.
+- `sentai.camera.csi_geom(w_cycles, h_lines)` → int. EXP-s259: receiver-only geometry override for the next `init()` (0, 0 = derive from the sensor geometry), used when the OV5640 ISP output size is re-programmed after init. W24-T14.
+- `sentai.camera.csi_settle(v)` → int. EXP-s259: MIPI D-PHY T-HSSETTLE override for the next `init()` (0 = table lookup). W24-T14.
+- `sentai.camera.save_raw(path, offset=0, nbytes=w*h*4)` → int bytes written. EXP-s259: dump a slice of the latest raw frame buffer exactly as the CSI receiver stored it (XYUV, packed YUV420, ...) to the user partition; pull it with `GET /api/raw/<path>` (keep slices under 1 MB). W24-T14.
 │   ├── native_res()
 │   ├── select(id)
 │   ├── frame_count() / sensor_frames()
