@@ -1,0 +1,121 @@
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> sentai.camera.set_hw(1280, 960)
+sentai.camera.set_hw(1280, 960)
+0
+>>> 
+>>> sentai.camera.packed420(1)
+sentai.camera.packed420(1)
+1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 30))
+print("INIT", sentai.camera.init(1, 30))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=028003C0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=23 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[CAM0] W 0x460C=0x22 (0)
+[CAM0] W 0x3824=0x01 (0)
+[cam] packed420 capture: sensor format 0x5F + PCLK div manual/1 -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE4 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate
+[cam] genlock step 0: phase 388 us -> cam0 VTS 984+17 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE9 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase 388 us -> cam0 VTS 984+17 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE9 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase 387 us -> cam0 VTS 984+17 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE9 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock FAILED: residual phase 387 us
+INIT 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+Model loaded: 516960 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0296f8b3eb875be6
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00034542  zero_point=134
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00012524  zero_point=83
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_relu_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.pipeline.debug_no_invoke(1)
+sentai.pipeline.debug_no_invoke(1)
+1
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 5022, 'cam_grab_ms_sum': 3322, 'quant_ms_sum': 0, 'frames': 186, 'total_ms_sum': 8344, 'sem_wait_ms_sum': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> sentai.pipeline.trace(1)
+sentai.pipeline.trace(1)
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 3807, 'cam_grab_ms_sum': 2532, 'quant_ms_sum': 0, 'frames': 141, 'total_ms_sum': 6339, 'sem_wait_ms_sum': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print("TR", sentai.pipeline.trace())
+print("TR", sentai.pipeline.trace())
+TR [(43863313, 4, 1, 133), (43864968, 10, 1, 133), (43890208, 5, 1, 133), (43890555, 1, 0, 134), (43890555, 2, 0, 134), (43890560, 11, 1, 133), (43890562, 12, 1, 133), (43890562, 14, 1, 133), (43905312, 3, 1, 358), (43905313, 4, 0, 134), (43911967, 10, 0, 134), (43932211, 5, 0, 134), (43932558, 1, 1, 135), (43932559, 2, 1, 135), (43932564, 11, 0, 134), (43932565, 12, 0, 134), (43932566, 14, 0, 134), (43952311, 3, 1, 359), (43952312, 4, 1, 135), (43953968, 10, 1, 135), (43979198, 5, 1, 135), (43979545, 1, 0, 136), (43979545, 2, 0, 136), (43979550, 11, 1, 135), (43979552, 12, 1, 135), (43979552, 14, 1, 135), (43994311, 3, 1, 359), (43994312, 4, 0, 136), (44000968, 10, 0, 136), (44021203, 5, 0, 136), (44021550, 1, 1, 137), (44021550, 2, 1, 137), (44021555, 11, 0, 136), (44021557, 12, 0, 136), (44021557, 14, 0, 136), (44041311, 3, 1, 360), (44041312, 4, 1, 137), (44042968, 10, 1, 137), (44068211, 5, 1, 137), (44068558, 1, 0, 138), (44068558, 2, 0, 138), (44068564, 11, 1, 137), (44068565, 12, 1, 137), (44068565, 14, 1, 137), (44083311, 3, 1, 360), (44083312, 4, 0, 138), (44089967, 10, 0, 138), (44110211, 5, 0, 138), (44110558, 1, 1, 139), (44110559, 2, 1, 139), (44110564, 11, 0, 138), (44110565, 12, 0, 138), (44110566, 14, 0, 138), (44130311, 3, 1, 361), (44130312, 4, 1, 139), (44131968, 10, 1, 139), (44157203, 5, 1, 139), (44157550, 1, 0, 140), (44157551, 2, 0, 140), (44157556, 11, 1, 139), (44157557, 12, 1, 139), (44157558, 14, 1, 139), (44172316, 3, 1, 361), (44172317, 4, 0, 140), (44178967, 10, 0, 140), (44199222, 5, 0, 140), (44199569, 1, 1, 141), (44199570, 2, 1, 141), (44199575, 11, 0, 140), (44199576, 12, 0, 140), (44199577, 14, 0, 140), (44219316, 3, 1, 362), (44219319, 4, 1, 141), (44220969, 10, 1, 141), (44246221, 5, 1, 141), (44246570, 1, 0, 142), (44246570, 2, 0, 142), (44246576, 11, 1, 141), (44246577, 12, 1, 141), (44246578, 14, 1, 141), (44261311, 3, 1, 362), (44261312, 4, 0, 142), (44267967, 10, 0, 142), (44288185, 5, 0, 142), (44288532, 1, 1, 143), (44288533, 2, 1, 143), (44288539, 11, 0, 142), (44288540, 12, 0, 142), (44288541, 14, 0, 142), (44308311, 3, 1, 363), (44308312, 4, 1, 143), (44309967, 10, 1, 143), (44335209, 5, 1, 143), (44335556, 1, 0, 144), (44335556, 2, 0, 144), (44335562, 11, 1, 143), (44335563, 12, 1, 143), (44335563, 14, 1, 143), (44350312, 3, 1, 363), (44350313, 4, 0, 144), (44356968, 10, 0, 144), (44377190, 5, 0, 144), (44377537, 1, 1, 145), (44377537, 2, 1, 145), (44377543, 11, 0, 144), (44377544, 12, 0, 144), (44377545, 14, 0, 144), (44397316, 3, 1, 364), (44397318, 4, 1, 145), (44398968, 10, 1, 145), (44424207, 5, 1, 145), (44424554, 1, 0, 146), (44424555, 2, 0, 146), (44424560, 11, 1, 145), (44424561, 12, 1, 145), (44424562, 14, 1, 145), (44439311, 3, 1, 364), (44439312, 4, 0, 146), (44445968, 10, 0, 146), (44466181, 5, 0, 146), (44466528, 1, 1, 147), (44466528, 2, 1, 147), (44466534, 11, 0, 146), (44466535, 12, 0, 146), (44466535, 14, 0, 146), (44486313, 3, 1, 365), (44486317, 4, 1, 147), (44513226, 5, 1, 147)]
+>>> 

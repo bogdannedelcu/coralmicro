@@ -49,6 +49,7 @@ def main():
                 out = bd.q('print("LOAD", sentai.tpu.load("%s"))' % MODELS[(w, h)], 90)
                 if 'LOAD 0' not in out: print('  LOAD FAILED'); continue
                 print('  no_invoke:', bd.last(bd.q('print("NI", sentai.pipeline.debug_no_invoke(1))', 5), 'NI'))
+                b16 = os.environ.get('B16', '0'); print('  pxp_block16:', bd.last(bd.q('print("B16", sentai.camera.pxp_block16(%s))' % b16, 5), 'B16'))
                 wu = prep_run(bd, 8); print('  warm-up: prep fps %.1f (discarded)' % wu['prep_fps'])
                 p = prep_run(bd, a.seconds)
                 print('  prepared frames/s %.1f | pxp %.1f ms  grab %.1f ms  sem %.1f ms  prep total %.1f ms (%d frames)' % (

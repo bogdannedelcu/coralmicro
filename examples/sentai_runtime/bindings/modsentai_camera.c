@@ -262,6 +262,14 @@ static mp_obj_t mod_sentai_cam_packed420(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_packed420_obj, 0, 1, mod_sentai_cam_packed420);
 
+// sentai.camera.pxp_block16(on) -> int.  EXP-s260 knob: run the packed-YUV420
+// byte-drop PXP pass with 16x16 blocks instead of 8x8 (SDRAM page locality test).
+extern int sentai_pxp_set_block16(int on);
+static mp_obj_t mod_sentai_cam_pxp_block16(mp_obj_t on_obj) {
+    return mp_obj_new_int(sentai_pxp_set_block16(mp_obj_is_true(on_obj) ? 1 : 0));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_pxp_block16_obj, mod_sentai_cam_pxp_block16);
+
 // sentai.camera.chase_test(n_slices) -> tuple.  EXP-s261 / W24-T15 step 1: PXP
 // repack that follows the CSI writer slice by slice inside one frame (pipeline
 // stopped).  Tuple: (ok, n_slices, detect_us, eof_us, done_after_eof_us,
@@ -1119,6 +1127,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_yuv_mode),   MP_ROM_PTR(&mod_sentai_cam_yuv_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_mode),   MP_ROM_PTR(&mod_sentai_cam_csi_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_packed420),  MP_ROM_PTR(&mod_sentai_cam_packed420_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pxp_block16), MP_ROM_PTR(&mod_sentai_cam_pxp_block16_obj) },
     { MP_ROM_QSTR(MP_QSTR_chase_test), MP_ROM_PTR(&mod_sentai_cam_chase_test_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_geom),   MP_ROM_PTR(&mod_sentai_cam_csi_geom_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_settle), MP_ROM_PTR(&mod_sentai_cam_csi_settle_obj) },

@@ -104,6 +104,45 @@ as `fsl_ov5640.c` fps key **36** (SDK patch 0007), D-PHY settle 0x12.
   32.6 ms, i.e. right at the frame period — the slice-chasing repack (s261) would
   spread it inside the frame.  The TPU pipeline stays at 13.6 fps: USB-bound.
 
+## Why 28.6 and not 30 — and the PXP block-size fix (`jitter_probe.py`, `block_equal.py`, builds 1744–1746)
+
+The operator's worry: a lost frame desynchronises the two-camera alternation.  The
+trace ring shows the mechanism exactly: on the true-30 row the byte-drop PXP takes
+32.5 ms on every frame (no jitter) plus ~1 ms grab/hand-off = 33.6 ms against a
+33.2 ms frame period, so the prep slips 0.4 ms per frame and skips one frame every
+~14 (intervals 33.2 x13, then 37.2).  The PXP is slower than at 22.6 fps (26.9 ms)
+because the CSI now writes 74 instead of 56 MB/s into the same SDRAM: CSI + PXP =
+206 MB/s, the practical SEMC limit.
+
+**Fix: PXP 16x16 processing blocks** (`PXP_SetProcessBlockSize(kPXP_BlockSize16)`,
+default was 8x8).  Sixteen source rows per block halve the SDRAM page switching
+of the PXP reads while the CSI competes for the bus:
+
+| row | mode | PXP 8x8 | PXP 16x16 | prepared fps 16x16 |
+|---|---|---|---|---|
+| VGA45 | legacy | 6.0 ms | 5.0 ms | 45.0 (camera) |
+| VGA45 | option B | 3.0 | 3.0 | 44.9 |
+| SXGA 22.6 fps | legacy | 51.3 | 37.0 | 22.4 (camera) |
+| SXGA 22.6 fps | option B | 27.0 | 22.0 | 22.4 |
+| SXGA true 30 | legacy | 61.7 | 44.2 | 19.7 |
+| **SXGA true 30** | **option B** | 32.5 | **19.6** | **29.9 (camera, no drops)** |
+
+With 16x16 blocks option B at a true 30 fps prepares every frame (19.6 ms PXP, 13.6
+ms idle per frame; trace intervals 30/35/35 ms = the 1 ms tick quantisation of 33.3).
+Output check (`block_equal.py`, VGA, staging dumps 8x8 vs 16x16): colour bars
+bit-identical in both modes; on the gradient pattern and the live scene the two
+dumps differ by mean |Δ| 0.15 / 1.5–2.2 — identically for the legacy repack and
+for option B's byte-drop, which is a pure copy and cannot depend on the block
+size, so the differences are frame-to-frame sensor/ISP noise, not processing.
+**But not with the TPU running** (`run_option_b.py --tag b1746`, 16x16 default):
+the full pipeline got slower — SXGA option B 13.8 → 12.5 fps with the invoke 70 →
+77 ms (true-30 row 13.6 → 12.2, invoke 71 → 79), VGA45 legacy 44.0 → 42.5 fps,
+invoke 20 → 21.1 ms.  The longer PXP bursts win the SDRAM arbitration against the
+EHCI's small reads, so what the PXP gains the USB transfer loses, and the pipeline is
+USB-bound.  Block size 16 therefore stays a knob (`sentai.camera.pxp_block16(1)`,
+default 8x8): right for camera-only / no-TPU workloads (flow, markers, recording),
+wrong for the detection pipeline.
+
 ## Method notes
 
 * Each phase is a fresh boot; the first pipeline run after `camera.init()` is slower

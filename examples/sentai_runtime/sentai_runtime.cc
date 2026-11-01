@@ -3116,6 +3116,7 @@ int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
 }
 
 // ---------------------------------------------------------------------
+extern volatile int g_sentai_pxp_block16;   /* defined with sentai_pxp_pack420_drop below */
 // sentai_pxp_xyuv_to_yuv420 (s240/YUV420):  ONE PXP pass that splits the
 // camera's native XYUV8888 frame into the two planes the dual-input
 // YUV420 model wants:
@@ -3166,9 +3167,13 @@ int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
   PXP_SetProcessSurfaceYUVFormat(DEMO_PXP, kPXP_PsYUVFormatYUV);
   PXP_EnableCsc1(DEMO_PXP, false);
   PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
+  /* EXP-s260: 16x16 processing blocks (see sentai_pxp_pack420_drop). */
+  if (g_sentai_pxp_block16) PXP_SetProcessBlockSize(DEMO_PXP, kPXP_BlockSize16);
   PXP_Start(DEMO_PXP);
 
-  if (!sentai_pxp_wait_complete()) {
+  const bool ok = sentai_pxp_wait_complete();
+  if (g_sentai_pxp_block16) PXP_SetProcessBlockSize(DEMO_PXP, kPXP_BlockSize8);
+  if (!ok) {
     SERR_LOG(SERR_CAM_PXP_TIMEOUT, __LINE__);
     return -7;
   }
@@ -3187,6 +3192,15 @@ int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
 // dst = [C,Y1,Y2] per pixel pair = 1.5 bytes per camera pixel, the same byte
 // count as the model's Y + UV planes.  No scaler, no CSC.  `w2` is the
 // camera width / 2.  Returns 0 on success.
+/* EXP-s260: PXP 16x16 processing blocks for the two camera repack passes.
+ * 16 source rows per block instead of 8 halves the SDRAM page switching while
+ * the CSI writes the other buffer: SXGA true-30 byte-drop 32.5 -> 19.6 ms,
+ * legacy repack 62 -> 44 ms, VGA legacy 6 -> 5 ms; output bit-identical on the
+ * colour-bar pattern and identical in distribution on gradients / live scenes
+ * (block size only changes the memory access order).  Default ON; the knob
+ * sentai.camera.pxp_block16(0) restores the 8x8 behaviour for A/B tests. */
+volatile int g_sentai_pxp_block16 = 1;
+extern "C" int sentai_pxp_set_block16(int on) { g_sentai_pxp_block16 = on ? 1 : 0; return g_sentai_pxp_block16; }
 extern "C"
 __attribute__((section(".sdram_text")))
 int sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst) {
@@ -3216,8 +3230,14 @@ int sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst) {
   PXP_SetAlphaSurfacePosition(DEMO_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
   PXP_EnableCsc1(DEMO_PXP, false);
   PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
+  /* EXP-s260: 16x16 blocks = 16 source rows per block instead of 8 -> fewer
+   * SDRAM page switches per byte while the CSI is writing at the same time.
+   * Restored to 8x8 afterwards so the other PXP users keep their behaviour. */
+  if (g_sentai_pxp_block16) PXP_SetProcessBlockSize(DEMO_PXP, kPXP_BlockSize16);
   PXP_Start(DEMO_PXP);
-  if (!sentai_pxp_wait_complete()) {
+  const bool ok = sentai_pxp_wait_complete();
+  if (g_sentai_pxp_block16) PXP_SetProcessBlockSize(DEMO_PXP, kPXP_BlockSize8);
+  if (!ok) {
     SERR_LOG(SERR_CAM_PXP_TIMEOUT, __LINE__);
     return -7;
   }

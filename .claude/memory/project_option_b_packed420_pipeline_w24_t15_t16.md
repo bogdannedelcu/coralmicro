@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T08:36:47.953Z
+  modified: 2026-11-01T09:01:37.720Z
 ---
 
 **EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
@@ -47,6 +47,15 @@ metadata:
   board (REPL silent, USB alive, no crash log; recover with flashtool re-flash);
   option B pipeline 13.6 fps, 0 errors (USB-bound).  Frame rate ∝ PLL mult /
   (sysdiv × mipi_div); mipi_div also divides PCLK.
+- **PXP 16x16 blocks (knob `camera.pxp_block16`, default OFF):** without the TPU
+  they cut the camera repack 30–40 % under CSI load (true-30 B byte-drop 32.5 →
+  19.6 ms → 30/30 frames prepared; legacy 62 → 44 ms), identical output — but
+  WITH the TPU streaming the long PXP bursts starve the EHCI reads: invoke 70 → 77
+  ms, SXGA pipeline 13.8 → 12.5 fps, VGA 44 → 42.5 (build 1746).  Use only for
+  camera-only workloads (flow/markers/recording).
+  Why 28.6 not 30 before: PXP 32.5 + 1 ms hand-off > 33.2 ms period → one frame
+  skipped every ~14 (deterministic slip, not jitter); CSI 74 + PXP 132 MB/s = SEMC
+  practical limit.
 - "Retrain" for option B is probably unnecessary: packed `[C,Y1,Y2]` is a
   space-to-depth of Y along x plus U/V row interleave, so the planar stem's weights
   re-index exactly into an H×W/2×3 stem with stride (2,1); only the TPU compiler
