@@ -8,6 +8,88 @@ Dead-end paths PURGED — see "Production cleanup pass" below.
 
 ---
 
+## 🧪 Session 2026-11-01 — Packed YUV420 capture, option B, OCRAM input ring, true SXGA fps rows (builds 1723–1756)
+
+WBS OP-S10-W24-T14..T17, EXP-s259..s264, board 58eb (rev 1.1), one camera only
+(operator: no camera switching in experiments until the task is clarified).
+Memory: `project_packed_yuv420_capture_2bpp_w24_t14.md`,
+`project_option_b_packed420_pipeline_w24_t15_t16.md`.
+
+### s259 — ERR051248 workaround: packed YUV420 at 2 B/px (W24-T14)
+The errata (IMXRT1170ACE §2.22) only forbids RAW and YUV422-10bit from MIPI; the
+4 B/px XYUV8888 capture came from the VIDEO_MUX pixel reformatter, not from the
+errata.  OV5640 `0x4300 = 0x5F` (CSI-2 legacy YUV420, UYY/VYY lines) through the
+24-bit CSI receiver at **half width** stores `[C,Y1,Y2,0]` per pixel pair (C = U on
+even rows, V on odd rows): pixel-exact at VGA and SXGA, CSI writes halved (SXGA 4.9 →
+2.46 MB/frame).  SXGA additionally needs `0x460C = 0x22` + `0x3824 = 0x01` (manual
+DVP PCLK divider ÷1), otherwise the bytes are rotated.  Dead ends (do not retry):
+CSICR18 MIPI bits do nothing on RT1176, 16-bit receiver = {U,V} plane, 8-bit receiver
+= data[9:2], 0x4814 is not a data-type override, OV5640 Y8 is not luma, CR20 gray
+mode stalls the CSI.  Knob: `camera.packed420(1)` before `init()`.
+
+### s260 — option B in the detection pipeline (W24-T16)
+PXP RGB888(32-bit) → RGB888P(24-bit) byte-drop turns the packed frame into
+`[C,Y1,Y2]` at 1.5 B/px = the same byte count as Y + UV planes.  VGA45 41.7 → 44.0
+fps (sensor rate), SXGA 12.7 → 13.8 fps with PXP 62 → 25 ms; the SXGA pipeline is
+now **USB-bound** (the Edge TPU takes input at a flat 35 MB/s: 1.84 MB + 0.3 MB
+instructions ≈ 61 ms).  Camera + PXP alone: SXGA 22.5 prepared fps.  Found that the
+SDK "SXGA 30" row really streams 22.6 fps and "SXGA 15" 11.2 fps (CSI `CR3.FRMCNT`;
+`sensor_frames()` over-counts ~15 %); frame rate ∝ PLL mult / (sysdiv × mipi_div).
+True-30 row (PLL 0x70): camera + PXP 28.6 prepared fps (PXP 32.5 ms ≈ period → one
+frame slipped every ~14, deterministic), legacy 4 B/px **hangs the board** at that
+rate (147 MB/s CSI writes starve SDRAM).  PXP 16×16 blocks (`camera.pxp_block16`,
+default OFF) cut the repack 30–40 % → 30/30 frames prepared without the TPU, but
+with the TPU streaming they starve the EHCI reads (invoke 70 → 77 ms).  Benchmark
+hygiene: discard the first run after `camera.init()` (autotune steals frames ~10 s).
+
+### s261 — slice-chasing PXP (W24-T15 step 1)
+Sync on CSI FRMCNT, find the in-flight buffer via DMASA_FB1/FB2 + padding-byte
+markers (D-cache invalidate before every CPU poll of a camera buffer), run the PXP
+per 128-row slice behind the CSI: EOF → frame ready 26.9 → 3.4 ms at SXGA, bit-exact.
+Step 4 (CSI line ring in OCRAM) = **dead end**: the CSI DMA is SOF-gated; with
+IMAG_PARA height 128 the done rate stays 30/s, FB1/FB2 never alternate mid-frame.
+
+### s262 — OCRAM input ring for the Edge TPU (W24-T15 step 3)
+3 × 245 760 B slots in the idle `.tpu_input` OCRAM buffer; PrepTask produces packed
+rows slice by slice, `TpuDriver::SendInputs` consumes them per URB and releases
+slots, one frame in flight (`frame_done` gate — without it two frames in flight
+desynchronised the ring).  SXGA option B **13.0 → 15.6 fps**, invoke 74 → 61 ms,
+outputs byte-identical to the staging path.  **CRITICAL BUG FOUND (build 1751):**
+the direct-tensor path never fed the TPU — patching `input_tensor(k)->data` does not
+reach the EvalTensor the Edge TPU op reads (TFLM copies the pointer at allocation);
+the TPU ran on the untouched arena, output scene-independent.  Fix:
+`g_sentai_tpu_input_override[k]` published by the invoke wrappers, consumed in
+`EdgeTpuExecutable::Invoke`.  Detection quality on that path before 2026-11-01 was
+on stale data.  Instruction caching (tinycoral `INSTRUCTIONS_ONCE.md`): loop the
+program on the scalar core, send instructions once — only if ≤ 16 384 words (256 KB
+imem): VGA detectors fit (5–8 k words), the SXGA model (297 KB) does not (W24-T13).
+
+### s263 — chase producer (W24-T15 step 2)
+`pipeline.chase_prep(1)`: PrepTask repacks the frame the CSI is writing, slice by
+slice, straight into the ring: last line written → TPU input on the wire 75 → 20 ms,
+but fps 15.9 → 13.2 (USB paced by the camera with a one-frame ring).  Knob, default
+off; latency-critical loops only.  Broken with a 15 fps sensor (slow readout → ring
+consumer timeouts → URB desync): 30 fps only.
+
+### s264 — camera at the pipeline's own rate = lockstep (W24-T17)
+With the sensor at a true 15 fps the option B + ring SXGA pipeline processes **every**
+frame: 14.98 captured / 14.98 processed, 1805/1806 over 120 s, invoke 60 ms inside
+the 66.7 ms period, 0 stale skips; at 30 fps it processes 54 % (16.3 fps) with a
+non-deterministic slip (matters for two-camera alternation).  Measure lockstep with
+CSI FRMCNT and the InferTask ok count read in ONE REPL statement in steady state (a
+start..stop window under-counts ~8 %).  **Re-keying (build 1756):** operator — a key
+that does not mean the frame rate is confusing → SXGA keys = measured fps:
+`camera.init(1, 15)` = 15.0, `(1, 22)` = 22.6 (old "30" row, legacy 4 B/px only),
+`(1, 30)` = 30.0 (packed only; legacy at 30 → -12).  SDK patch 0007 rewritten as
+`0007-ov5640-sxga-true-fps-rows`; logs of builds 1742–1755 use the old keys 36/18.
+
+### Open after this session
+Option B production integration (3-channel H×W/2 stem by weight re-indexing, sensor
+row from init, frame-layout flag for JPEG/flow/markers); W24-T13 instruction loop for
+VGA models; re-validate production RGB detections after the direct-tensor fix.
+
+---
+
 ## 🧪 Session 2026-05-09 — FS hardening + radio auto-init (build #1223)
 
 Goal: stop losing `/main.py` after power-cycles + decouple radio

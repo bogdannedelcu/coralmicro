@@ -1,5 +1,7 @@
 # EXP-s260 — Option B speed test: packed YUV420 capture + PXP byte-drop in the TPU pipeline (OP-S10-W24-T16)
 
+> **fps keys in this README are the pre-build-1756 keys.**  Since 2026-11-01 (SDK patch 0007 rewritten, EXP-s264) the SXGA keys mean the measured frame rate: old key 36 (true 30 fps) = `camera.init(1, 30)`, old key 30 (22.6 fps) = `init(1, 22)`, old key 18 (true 15 fps) = `init(1, 15)`; the old 11.2 fps key 15 is gone.
+
 **Board** 58eb, **build** 1733, **date** 2026-11-01, one camera (cam 0), dark room
 (same scene in every phase).  Models: the trained s257 `c2f_yuv420_int8_edgetpu`
 (VGA) and the s258 `c2f_yuv420_sxga_relu_int8_edgetpu` (SXGA); detections are not

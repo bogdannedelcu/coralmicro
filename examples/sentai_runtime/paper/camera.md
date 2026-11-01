@@ -1,32 +1,32 @@
 # SentAI Runtime — Camera Initialization & Pipeline
 
-## Senzor hardware
+## Sensor hardware
 
-Board-ul Coral Micro integrează un senzor **OV5640** dual-camera (front + back)
-conectat prin MIPI CSI-2 (2 lanes).  Cele două camere partajează bus-ul CSI
-printr-un **GPIO MUX** (`kCamMux`) — doar una e activă la un moment dat.
+The Coral Micro board integrates a dual-camera **OV5640** sensor (front + back)
+connected over MIPI CSI-2 (2 lanes).  The two cameras share the CSI bus
+through a **GPIO MUX** (`kCamMux`) — only one is active at a time.
 
-| Parametru | Valoare |
+| Parameter | Value |
 |-----------|---------|
-| Senzor | OV5640 |
-| Rezoluție nativă | 1280 × 720 |
+| Sensor | OV5640 |
+| Native resolution | 1280 × 720 |
 | Frame rate | 15 fps |
-| Format CSI | XRGB8888 (4 bytes/pixel) |
-| Buffere DMA | 4 (Cortex-M7) |
-| I2C | 2 bus-uri separate (cam0 front, cam1 back) |
+| CSI format | XRGB8888 (4 bytes/pixel) |
+| DMA buffers | 4 (Cortex-M7) |
+| I2C | 2 separate buses (cam0 front, cam1 back) |
 
 ---
 
-## Inițializarea originală Google
+## Original Google initialization
 
-Toate exemplele din repo-ul original urmează un pattern simplu în 2 pași:
+All the examples in the original repo follow a simple 2-step pattern:
 
 ```cpp
 CameraTask::GetSingleton()->SetPower(true);
-CameraTask::GetSingleton()->Enable(CameraMode::kStreaming);  // sau kTrigger
+CameraTask::GetSingleton()->Enable(CameraMode::kStreaming);  // or kTrigger
 ```
 
-### Captura de frame
+### Frame capture
 
 ```cpp
 std::vector<CameraFrameFormat> fmts = {{
@@ -42,17 +42,17 @@ std::vector<CameraFrameFormat> fmts = {{
 CameraTask::GetSingleton()->GetFrame(fmts);
 ```
 
-### Caracteristici
+### Characteristics
 
-- **O singură cameră** — nu există mecanism de switch
-- **Conversie pe CPU** — `Rgb8888ToRgb()` iterează pixel cu pixel pentru a
-  elimina canalul alpha din XRGB8888 → RGB888
-- **Fără scaling hardware** — output-ul are dimensiunea nativă a senzorului
-- **PXP** (Pixel Pipeline) este inițializat dar practic nefolosit
-- **Rezoluție fixă** — nu se poate schimba la runtime
-- **Single-threaded** — captura, conversia și procesarea sunt secvențiale
+- **A single camera** — there is no switching mechanism
+- **CPU conversion** — `Rgb8888ToRgb()` iterates pixel by pixel to
+  strip the alpha channel from XRGB8888 → RGB888
+- **No hardware scaling** — the output has the sensor's native size
+- **PXP** (Pixel Pipeline) is initialized but practically unused
+- **Fixed resolution** — cannot be changed at runtime
+- **Single-threaded** — capture, conversion and processing are sequential
 
-### Exemplu tipic din `detect_objects.cc`
+### Typical example from `detect_objects.cc`
 
 ```text
 SetPower(true)
@@ -60,14 +60,14 @@ SetPower(true)
     → loop:
          Trigger()
          DiscardOldFrames()
-         GetFrame(fmts)          ← CPU demosaic, lent
-         Invoke()                ← TPU inferență
+         GetFrame(fmts)          ← CPU demosaic, slow
+         Invoke()                ← TPU inference
          parse results
 ```
 
 ---
 
-## Inițializarea SentAI
+## SentAI initialization
 
 ### `sentai_cam_init(streaming)`
 
@@ -80,7 +80,7 @@ extern "C" int sentai_cam_init(int streaming) {
                           : CameraMode::kTrigger;
     if (!cam->Enable(mode)) return -2;
 
-    // Ciclu prin ambele camere — asigură inițializarea completă CSI/MIPI
+    // Cycle through both cameras — ensures complete CSI/MIPI initialization
     cam->SwitchCamera(SwitchCameraId::kCameraBack);
     cam->SwitchCamera(SwitchCameraId::kCameraFront);
 
@@ -88,29 +88,29 @@ extern "C" int sentai_cam_init(int streaming) {
 }
 ```
 
-### Diferențe cheie față de original
+### Key differences from the original
 
 | Aspect | Google original | SentAI runtime |
 |--------|----------------|----------------|
-| **Inițializare** | `SetPower` + `Enable` | + ciclare duală front/back |
-| **Camere** | 1 (fixă) | 2, comutabile la runtime |
+| **Initialization** | `SetPower` + `Enable` | + dual front/back cycling |
+| **Cameras** | 1 (fixed) | 2, switchable at runtime |
 | **Frame API** | `GetFrame(CameraFrameFormat)` | `GetRawFrame()` + PXP hardware |
-| **Conversie** | CPU `Rgb8888ToRgb` | PXP DMA (hardware accelerat) |
-| **Scaling** | Nu există | PXP hardware (orice rezoluție) |
-| **Rezoluție** | Fixă (nativă 1280×720) | Configurabilă via `set_resolution()` |
-| **Cache D** | Invalidare simplă | Clean+Invalidate înainte de PXP, Invalidate după |
-| **Recovery** | Niciuna | Toggle MUX + retry (până la 2 încercări) |
+| **Conversion** | CPU `Rgb8888ToRgb` | PXP DMA (hardware accelerated) |
+| **Scaling** | None | PXP hardware (any resolution) |
+| **Resolution** | Fixed (native 1280×720) | Configurable via `set_resolution()` |
+| **D-cache** | Simple invalidate | Clean+Invalidate before PXP, Invalidate after |
+| **Recovery** | None | Toggle MUX + retry (up to 2 attempts) |
 | **Pipeline** | Single-threaded | Double-buffered (PrepTask + InferTask) |
-| **Acces Python** | Nu | `sentai.camera.*` complet |
+| **Python access** | No | Full `sentai.camera.*` |
 
 ---
 
 ## Camera Switch
 
-### Cum funcționează
+### How it works
 
-Cele două camere (front=cam0, back=cam1) partajează același bus MIPI CSI.
-Comutarea se face prin GPIO MUX — **fără restart CSI/MIPI**:
+The two cameras (front=cam0, back=cam1) share the same MIPI CSI bus.
+Switching is done through the GPIO MUX — **without a CSI/MIPI restart**:
 
 ```text
 sentai.camera.select(1)   →   sentai_cam_switch(1)
@@ -120,47 +120,47 @@ sentai.camera.select(1)   →   sentai_cam_switch(1)
                                   │
                                   ├─ g_cam_switch_pending = true
                                   │
-                                  └─ La următorul GetRawFrame:
+                                  └─ On the next GetRawFrame:
                                        drain stale frames (~134ms)
-                                       așteaptă ≥2 frames noi de la camera nouă
-                                       (verificat prin g_camera_frame_seq)
+                                       wait for ≥2 new frames from the new camera
+                                       (verified through g_camera_frame_seq)
 ```
 
-### Secvență detaliată
+### Detailed sequence
 
-1. **`SwitchCamera(id)`** — flip GPIO MUX (instant, ~1μs)
-2. **Drain** — primele 1-2 frame-uri DMA conțin încă date de la camera veche
-3. **Sequence check** — runtime-ul monitorizează `g_camera_frame_seq` (monotonic)
-   și nu returnează frame-uri până când nu apar cel puțin 2 frame-uri noi
-4. **Rotație automată** — fiecare cameră are rotația proprie:
+1. **`SwitchCamera(id)`** — flip the GPIO MUX (instant, ~1μs)
+2. **Drain** — the first 1-2 DMA frames still contain data from the old camera
+3. **Sequence check** — the runtime monitors `g_camera_frame_seq` (monotonic)
+   and does not return frames until at least 2 new frames have appeared
+4. **Automatic rotation** — each camera has its own rotation:
    - Front (cam0): 180° (OV5640 mirror/flip registers)
    - Back (cam1): 0°
-5. **Timeout** — dacă 134ms trec fără frame valid, recovery cu MUX toggle
+5. **Timeout** — if 134ms pass without a valid frame, recovery with MUX toggle
 
-### Rotație per-cameră
+### Per-camera rotation
 
 ```python
 >>> sentai.camera.rotate(0, 180)   # front: 180°
 >>> sentai.camera.rotate(1, 0)     # back: 0°
 ```
 
-Rotația se aplică prin registrele OV5640 (mirror H/V) — **nu** prin PXP.
+The rotation is applied through the OV5640 registers (mirror H/V) — **not** through PXP.
 
 ---
 
-## Pipeline-ul PXP (Pixel Pipeline)
+## The PXP (Pixel Pipeline) pipeline
 
-### De ce PXP în loc de CPU
+### Why PXP instead of the CPU
 
-Google original folosește `Rgb8888ToRgb()` — o buclă CPU per-pixel care
-copiază 3 din 4 bytes pentru fiecare pixel din frame-ul 1280×720:
+The Google original uses `Rgb8888ToRgb()` — a per-pixel CPU loop that
+copies 3 out of 4 bytes for every pixel of the 1280×720 frame:
 
 ```text
 1280 × 720 × 4 bytes = 3.5 MB per frame
-CPU loop: ~15-20ms per frame pe Cortex-M7 @ 996 MHz
+CPU loop: ~15-20ms per frame on Cortex-M7 @ 996 MHz
 ```
 
-SentAI folosește **PXP** (hardware DMA al NXP):
+SentAI uses **PXP** (NXP's hardware DMA):
 
 ```text
 XRGB8888 (CSI) → PXP → RGB888 planar (scaled)
@@ -170,53 +170,53 @@ XRGB8888 (CSI) → PXP → RGB888 planar (scaled)
 ### `pxp_scale_xrgb_to_rgb()`
 
 ```text
-1. DCACHE_CleanInvalidateByRange(input)    ← asigură coerență DMA
-2. PXP_SetProcessSurfaceBufferConfig(...)  ← sursă: XRGB8888
+1. DCACHE_CleanInvalidateByRange(input)    ← ensures DMA coherency
+2. PXP_SetProcessSurfaceBufferConfig(...)  ← source: XRGB8888
 3. PXP_SetOutputBufferConfig(...)          ← dest: RGB888, WxH target
 4. PXP_Start()                             ← hardware DMA transfer
 5. while (!PXP_GetStatusFlags() & done)    ← poll ~2ms
-6. DCACHE_InvalidateByRange(output)        ← invalidează cache pentru CPU
+6. DCACHE_InvalidateByRange(output)        ← invalidates the cache for the CPU
 ```
 
 ---
 
-## Pipeline de detecție (double-buffered)
+## Detection pipeline (double-buffered)
 
-SentAI runtime operează un pipeline cu 2 task-uri FreeRTOS paralele:
+The SentAI runtime operates a pipeline with 2 parallel FreeRTOS tasks:
 
 ```text
-PrepTask (prioritate 2)              InferTask (prioritate 3)
+PrepTask (priority 2)                InferTask (priority 3)
 ─────────────────────────            ──────────────────────────
 wait(staging_free)                   wait(prep_done)
 cam_get_raw()                        memcpy staging→tensor  ~0.5ms
-PXP → staging_buf         ~2ms      give(staging_free)     ← PrepTask pornește N+1
+PXP → staging_buf         ~2ms      give(staging_free)     ← PrepTask starts N+1
 uint8→int8 quantization   ~1ms      TPU Invoke()           ~30ms
 give(prep_done)                      NMS post-processing
                                      push results to queue
 ```
 
-- **Staging buffer**: 640×640×3 în SDRAM, aliniat la 64 bytes
-- **Semafoare**: `staging_free` și `prep_done` sincronizează handoff-ul
-- **Overlap**: în timp ce TPU procesează frame N, PrepTask pregătește frame N+1
-- **Coadă rezultate**: FreeRTOS queue (4 deep, overwrite on full)
+- **Staging buffer**: 640×640×3 in SDRAM, 64-byte aligned
+- **Semaphores**: `staging_free` and `prep_done` synchronize the handoff
+- **Overlap**: while the TPU processes frame N, PrepTask prepares frame N+1
+- **Result queue**: FreeRTOS queue (4 deep, overwrite on full)
 
-Acest pipeline elimină complet idle time-ul TPU — throughput efectiv
-egal cu `max(prep_time, inference_time)` în loc de `prep + inference`.
+This pipeline completely eliminates TPU idle time — effective throughput
+equals `max(prep_time, inference_time)` instead of `prep + inference`.
 
 ---
 
 ## Python API — `sentai.camera`
 
-| Funcție | Descriere |
+| Function | Description |
 |---------|-----------|
-| `sentai.camera.init(streaming=1)` | Inițializează camera (1=streaming, 0=trigger) |
-| `sentai.camera.select(id)` | Comută camera: 0=front, 1=back |
-| `sentai.camera.rotate(cam_id, degrees)` | Setează rotația (0/90/180/270) |
-| `sentai.camera.set_resolution(w, h)` | Rezoluția PXP output (max nativă) |
-| `sentai.camera.save_jpeg(path)` | Capturează și salvează JPEG pe LFS |
-| `sentai.camera.frame()` | Returnează frame RGB raw |
+| `sentai.camera.init(streaming=1)` | Initializes the camera (1=streaming, 0=trigger) |
+| `sentai.camera.select(id)` | Switches the camera: 0=front, 1=back |
+| `sentai.camera.rotate(cam_id, degrees)` | Sets the rotation (0/90/180/270) |
+| `sentai.camera.set_resolution(w, h)` | PXP output resolution (max native) |
+| `sentai.camera.save_jpeg(path)` | Captures and saves a JPEG to LFS |
+| `sentai.camera.frame()` | Returns a raw RGB frame |
 
-### Exemplu: captura de pe ambele camere
+### Example: capture from both cameras
 
 ```python
 >>> sentai.camera.init(1)
@@ -228,7 +228,7 @@ egal cu `max(prep_time, inference_time)` în loc de `prep + inference`.
 
 ---
 
-## Diagrama de inițializare comparativă
+## Comparative initialization diagram
 
 ```text
 GOOGLE ORIGINAL                      SENTAI RUNTIME
@@ -252,99 +252,99 @@ inference                            double-buffered pipeline
                                      (PrepTask ∥ InferTask)
 ```
 
-## Surse relevante
+## Relevant sources
 
-| Fișier | Rol |
+| File | Role |
 |--------|-----|
 | `sentai_runtime.cc` | `sentai_cam_init`, `pxp_scale_xrgb_to_rgb`, recovery |
 | `modsentai_camera.c` | Python API `sentai.camera.*` |
-| `detection_task.cc` | Pipeline double-buffered PrepTask+InferTask |
+| `detection_task.cc` | Double-buffered PrepTask+InferTask pipeline |
 | `libs/camera/camera.cc` | `SetPower`, `Enable`, `SwitchCamera`, DMA buffers |
-| `libs/camera/camera_support.h` | Constante: rezoluție nativă, BPP, buffer count |
+| `libs/camera/camera_support.h` | Constants: native resolution, BPP, buffer count |
 
 ---
 
-## Update 2026-04-21 — Tranziția la VGA nativ + fix MIPI DPHY
+## Update 2026-04-21 — Transition to native VGA + MIPI DPHY fix
 
-### De ce a fost necesar
+### Why it was necessary
 
-Profiling-ul pipeline-ului (PrepTask per-stage timing, instrument adăugat ca
-`sentai.pipeline.prep_stats()`) a arătat că la 720p nativ modelul YOLO
-512×512 petrece 28 ms / frame în PXP doar pentru a face down-scale
-1280×720 → 512×512.  Camera output-ul 720p încarcă SEMC SDRAM cu 3.6 MB
-per frame (transferul CSI + citirea PXP), iar acest trafic concurează cu
-USB bulk-out al tensor-ului în timpul `Invoke()` → fiecare invoke creștea
-de la 34 ms pur (E20 isolated) la 58 ms cu pipeline activ.
+Profiling the pipeline (PrepTask per-stage timing, instrument added as
+`sentai.pipeline.prep_stats()`) showed that at native 720p the YOLO
+512×512 model spends 28 ms / frame in PXP just to down-scale
+1280×720 → 512×512.  The 720p camera output loads the SEMC SDRAM with 3.6 MB
+per frame (the CSI transfer + the PXP read), and this traffic competes with
+the USB bulk-out of the tensor during `Invoke()` → every invoke grew
+from 34 ms pure (E20 isolated) to 58 ms with the pipeline active.
 
-**Obiectiv**: coborî camera nativă la VGA (640 × 480) pentru ca PXP să
-proceseze 5.6× mai puțini pixeli sursă, eliberând simultan banda SEMC
-pentru USB transfer în paralel cu PXP.
+**Goal**: lower the native camera to VGA (640 × 480) so that PXP
+processes 5.6× fewer source pixels, simultaneously freeing SEMC bandwidth
+for the USB transfer in parallel with PXP.
 
-### Rezultatul bug-ului din driver NXP
+### The result of the NXP driver bug
 
-Primul test cu VGA schimbat în `camera_support.h` a eșuat neașteptat:
-`sentai.camera.jpeg(60)` single-shot producea frame-uri curate, dar
-pipeline-ul primea **1 frame apoi blocaj** — `CAMERA_RECEIVER_GetFullBuffer`
-nu mai returna niciun frame după primul.
+The first test with VGA changed in `camera_support.h` failed unexpectedly:
+`sentai.camera.jpeg(60)` single-shot produced clean frames, but the
+pipeline received **1 frame then stalled** — `CAMERA_RECEIVER_GetFullBuffer`
+returned no more frames after the first.
 
-Root cause identificat după comparație cu sursele upstream
-`libedgetpu` / kernel Linux `ov5640.c` + `OV5640 Application Notes`:
+Root cause identified after comparison with the upstream sources
+`libedgetpu` / Linux kernel `ov5640.c` + `OV5640 Application Notes`:
 
-Tabelul `s_ov5640MipiClockConfigs` din
+The `s_ov5640MipiClockConfigs` table in
 `third_party/nxp/rt1176-sdk/components/video/camera/device/ov5640/fsl_ov5640.c`
-avea:
+had:
 
 ```c
 { .resolution = kVIDEO_ResolutionVGA, .framePerSec = 15, ..., .pclkPeriod = 0x0a },
 { .resolution = kVIDEO_ResolutionVGA, .framePerSec = 30, ..., .pclkPeriod = 0x0a },  // BUG
 ```
 
-Valoarea `pclkPeriod` se scrie în registrul OV5640 `0x4837` — **MIPI Global
-Timing**, perioada PCLK-ului în unități de UI_PIXEL pentru interfața
-MIPI CSI-2.  La 30 fps rata de pixeli este dublu față de 15 fps, deci
-`pclkPeriod` trebuia dublat (`0x14`), nu clonat de la 15 fps.  Cu perioada
-greșită:
+The `pclkPeriod` value is written to OV5640 register `0x4837` — **MIPI Global
+Timing**, the PCLK period in UI_PIXEL units for the MIPI CSI-2
+interface.  At 30 fps the pixel rate is double that of 15 fps, so
+`pclkPeriod` had to be doubled (`0x14`), not cloned from 15 fps.  With the
+wrong period:
 
-- Primul frame trece — D-PHY-ul host-ului pornește curat din idle.
-- Pentru frame 2+ D-PHY-ul receptor RT1176 eșantionează prea rapid față
-  de output-ul real al senzorului → pierde sync HS-start → frame
-  timeout → `CAMERA_RECEIVER_GetFullBuffer` nu mai primește
-  `FrameComplete` → PrepTask blochează indefinit.
+- The first frame passes — the host D-PHY starts cleanly from idle.
+- For frame 2+ the RT1176 receiver D-PHY samples too fast relative
+  to the sensor's actual output → loses HS-start sync → frame
+  timeout → `CAMERA_RECEIVER_GetFullBuffer` no longer receives
+  `FrameComplete` → PrepTask blocks indefinitely.
 
-Fix-ul aplicat în `fsl_ov5640.c`:
+The fix applied in `fsl_ov5640.c`:
 
 ```c
 { .resolution = kVIDEO_ResolutionVGA, .framePerSec = 30, ..., .pclkPeriod = 0x14 },
 ```
 
-Un singur byte schimbat.  Impact:
+A single byte changed.  Impact:
 - E15 pipeline: **17.0 fps → 24.4 fps** (+45%)
-- PXP: **28 ms → 12 ms** (3×, exact scalarea liniară cu pixel count)
-- Invoke: **58 ms → 40 ms** (eliberează SEMC în paralel cu PXP)
+- PXP: **28 ms → 12 ms** (3×, exactly the linear scaling with pixel count)
+- Invoke: **58 ms → 40 ms** (frees SEMC in parallel with PXP)
 
-### Validare vizuală (E21)
+### Visual validation (E21)
 
-`diag/drivers/_e21_vga_capture.py` capturează 10 JPEG-uri consecutive pe
-cam0 la noua rezoluție nativă 640×480.  Frame-urile sunt JPEG 640×480,
-colori corecte, zero tearing sau artefacte — confirmă că nu doar
-timing-ul merge, ci și pixelii sunt valizi.  Frame-urile salvate sub
-`experiments/e21_vga_visual/` în repo.
+`diag/drivers/_e21_vga_capture.py` captures 10 consecutive JPEGs on
+cam0 at the new native resolution 640×480.  The frames are 640×480 JPEGs,
+correct colours, zero tearing or artefacts — confirms that not only
+the timing works, but the pixels are valid too.  The frames are saved under
+`experiments/e21_vga_visual/` in the repo.
 
-### Tabel măsurători cumulative
+### Cumulative measurements table
 
-| Versiune | FPS E15 | PXP ms | Invoke ms | Descriere |
+| Version | FPS E15 | PXP ms | Invoke ms | Description |
 |---|---|---|---|---|
 | Baseline (720p + memcpy stg→tensor) | 13.3 | 28 | 58 | Original |
-| + `direct_tensor` (ping-pong buffer) | 17.3 | 28 | 58 | Elimină memcpy 17 ms |
-| + VGA 640×480 + `pclkPeriod=0x14` | **24.4** | **12** | **40** | Fix NXP driver |
+| + `direct_tensor` (ping-pong buffer) | 17.3 | 28 | 58 | Eliminates 17 ms memcpy |
+| + VGA 640×480 + `pclkPeriod=0x14` | **24.4** | **12** | **40** | NXP driver fix |
 
-**Total speedup cumulativ: +83%** față de baseline inițial.
+**Total cumulative speedup: +83%** over the initial baseline.
 
-## Update 2026-04-20 — VGA @ 45 fps + camera switching paralel
+## Update 2026-04-20 — VGA @ 45 fps + parallel camera switching
 
-### VGA @ 45 fps — validat
+### VGA @ 45 fps — validated
 
-Adăugată intrare nouă în `s_ov5640MipiClockConfigs`:
+New entry added to `s_ov5640MipiClockConfigs`:
 
 ```c
 { .resolution = kVIDEO_ResolutionVGA, .framePerSec = 45,
@@ -352,159 +352,216 @@ Adăugată intrare nouă în `s_ov5640MipiClockConfigs`:
   .pclkDiv = 0x02, .pclkPeriod = 0x0D },
 ```
 
-**Derivarea empirică (NASA-style retries):**
+**Empirical derivation (NASA-style retries):**
 
-| Attempt | pllCtrl1 | pllCtrl2 | pclkPeriod | Rezultat |
+| Attempt | pllCtrl1 | pllCtrl2 | pclkPeriod | Result |
 |---|---|---|---|---|
-| 1 | 0x0C | 0x38 | 0x0D | Hang — `sysdiv=0` invalid (driverul Linux impune min=1) |
-| 2 | **0x14** | **0x54** | **0x0D** | **WORKS** — PLL mult ×1.5 față de 30 fps |
+| 1 | 0x0C | 0x38 | 0x0D | Hang — `sysdiv=0` invalid (the Linux driver enforces min=1) |
+| 2 | **0x14** | **0x54** | **0x0D** | **WORKS** — PLL mult ×1.5 relative to 30 fps |
 
-Observație cheie: registrul OV5640 `0x3035` are layout `(sysdiv << 4) |
-mipi_div`.  `pllCtrl1 = 0x0C` înseamnă `sysdiv=0` — valoare ilegală.
-Scalarea ratei de pixeli trebuie făcută prin PLL multiplier
-(`pllCtrl2`: 0x38 → 0x54, ×1.5), NU prin `sysdiv`.
+Key observation: OV5640 register `0x3035` has the layout `(sysdiv << 4) |
+mipi_div`.  `pllCtrl1 = 0x0C` means `sysdiv=0` — an illegal value.
+The pixel-rate scaling must be done through the PLL multiplier
+(`pllCtrl2`: 0x38 → 0x54, ×1.5), NOT through `sysdiv`.
 
-Intrarea corespondentă în `csi2rxHsSettle` (din
-`libs/camera/camera_support.c`) pentru tHsSettle D-PHY la 45 fps.
+The corresponding entry in `csi2rxHsSettle` (in
+`libs/camera/camera_support.c`) for the D-PHY tHsSettle at 45 fps.
 
-### VGA @ 60 fps — eșuat
+### VGA @ 60 fps — failed
 
-Attempt: `pllCtrl2 = 0x70, pclkPeriod = 0x0A`.  Init-ul acceptă PLL-ul
-(ret=0), dar primul `jpeg()` blochează — CSI2RX nu primește frame-uri.
-Probabil cere register companions `0x3037` (PLL root divider) și `0x3108`
-(SRB clock) pe care tabelul static al NXP nu le expune.  Păstrat ca
-entry comentat în `fsl_ov5640.c` pentru debug viitor cu scope.
+Attempt: `pllCtrl2 = 0x70, pclkPeriod = 0x0A`.  Init accepts the PLL
+(ret=0), but the first `jpeg()` blocks — CSI2RX receives no frames.
+It probably requires the companion registers `0x3037` (PLL root divider) and `0x3108`
+(SRB clock) which NXP's static table does not expose.  Kept as a
+commented-out entry in `fsl_ov5640.c` for future debugging with a scope.
 
-### E22 — Camera switching alternat în pipeline paralel
+### E22 — Alternating camera switching in the parallel pipeline
 
-Inițial testul de switching cam0↔cam1 se făcea secvențial din Python
-(`select(0) → get_ex → select(1) → get_ex`), dând ~8 fps efectiv la
-VGA/45 (costul drain-ului domina).
+Initially the cam0↔cam1 switching test was done sequentially from Python
+(`select(0) → get_ex → select(1) → get_ex`), giving ~8 fps effective at
+VGA/45 (the drain cost dominated).
 
-**Idee**: mutăm alternarea în ISR-ul CSI EOF, sub `g_cam_ratio_packed`
-(atomic 32-bit scheduler).  Python apelează o singură dată
-`sentai.camera.ratio(1, 1)` și pipeline-ul paralel continuă uninterrupted
-— flip-ul MUX se face glitch-free în VBLANK, fără drain între frame-uri.
+**Idea**: move the alternation into the CSI EOF ISR, under `g_cam_ratio_packed`
+(atomic 32-bit scheduler).  Python calls
+`sentai.camera.ratio(1, 1)` once and the parallel pipeline continues uninterrupted
+— the MUX flip is done glitch-free in VBLANK, with no drain between frames.
 
 ```python
 sentai.pipeline.direct_tensor(1)
 sentai.camera.switch_drain(1)
-sentai.camera.ratio(1, 1)     # ISR alternează cam0/cam1 la fiecare EOF
+sentai.camera.ratio(1, 1)     # ISR alternates cam0/cam1 on every EOF
 sentai.pipeline.start(0.25, 0.45, 50)
 ```
 
-Rezultate `_e22_alt_parallel.py`:
+Results from `_e22_alt_parallel.py`:
 
-| Config | FPS | Note |
+| Config | FPS | Notes |
 |---|---|---|
-| A — fixed cam0 (baseline) | 24.45 | Reference — un singur senzor activ |
-| **B — ratio(1,1) drain=1** | **21.04** | Alternare per-frame în ISR |
-| C — ratio(1,1) drain=2 | 17.93 | Drain conservator — un frame pierdut |
+| A — fixed cam0 (baseline) | 24.45 | Reference — a single sensor active |
+| **B — ratio(1,1) drain=1** | **21.04** | Per-frame alternation in the ISR |
+| C — ratio(1,1) drain=2 | 17.93 | Conservative drain — one frame lost |
 
-**Câștig efectiv**: 21 fps alternat == 10.5 fps per-cameră simultan pe
-cam0 și cam1, vs ~4 fps/cam cu switching secvențial Python.  Rata
-efectivă a senzorilor este **74 fps combinat** (37/cam) — limita reală
-devine pipeline-ul de inferență, nu driverul de cameră.
+**Effective gain**: 21 fps alternating == 10.5 fps per camera simultaneously on
+cam0 and cam1, vs ~4 fps/cam with sequential Python switching.  The
+effective sensor rate is **74 fps combined** (37/cam) — the real limit
+becomes the inference pipeline, not the camera driver.
 
-### Derivarea valorilor PLL în `s_ov5640MipiClockConfigs`
+### Derivation of the PLL values in `s_ov5640MipiClockConfigs`
 
-Cele 6 câmpuri din tabel sunt registrele OV5640 `0x3034..0x3037`,
-`0x3108` și `0x4837`.  Formula efectivă (derivată din driverul upstream
-Linux `ov5640.c::ov5640_set_mipi_pclk`):
+The 6 fields in the table are the OV5640 registers `0x3034..0x3037`,
+`0x3108` and `0x4837`.  The effective formula (derived from the upstream
+Linux driver `ov5640.c::ov5640_set_mipi_pclk`):
 
 ```
 PLL_output    = 24 MHz / prediv × mult
-                (prediv fixat 3 prin PLL_CTRL3 în pipeline-ul NXP)
-sysdiv        = (pllCtrl1 >> 4)   ≥ 1   (ilegal 0!)
+                (prediv fixed at 3 through PLL_CTRL3 in the NXP pipeline)
+sysdiv        = (pllCtrl1 >> 4)   ≥ 1   (0 is illegal!)
 mipi_div      = (pllCtrl1 & 0x0F)
-mult          = pllCtrl2          (8-bit, 4..252; 84 → decimal tipic)
+mult          = pllCtrl2          (8-bit, 4..252; 84 → typical decimal)
 pclk          = PLL_output / (sysdiv × mipi_div × pclkDiv)
-pclkPeriod    = ceil(1 / lane_bit_rate_UI)  →  scalează invers cu mult
+pclkPeriod    = ceil(1 / lane_bit_rate_UI)  →  scales inversely with mult
 ```
 
-Constrângeri cheie (datasheet OV5640 §2.9):
-- `sysdiv ≥ 1` — valoarea 0 e invalidă și blochează driverul
-- `PLL_output` trebuie să stea în 500–1000 MHz
-- La 2 lane MIPI, `tHsSettle` (din `csi2rxHsSettle`) scade când
-  `lane_bit_rate` crește (uzual `0x12` la 672 MHz vs `0x1F` la 448 MHz)
+Key constraints (OV5640 datasheet §2.9):
+- `sysdiv ≥ 1` — the value 0 is invalid and locks up the driver
+- `PLL_output` must stay within 500–1000 MHz
+- With 2 MIPI lanes, `tHsSettle` (from `csi2rxHsSettle`) decreases when
+  `lane_bit_rate` increases (typically `0x12` at 672 MHz vs `0x1F` at 448 MHz)
 
-Tabel derivare pentru intrările folosite de sentai:
+Derivation table for the entries used by sentai:
 
-| Rez × fps | pllCtrl1 | mult (pllCtrl2) | PLL_out | pclkPeriod | Status |
+| Res × fps | pllCtrl1 | mult (pllCtrl2) | PLL_out | pclkPeriod | Status |
 |---|---|---|---|---|---|
 | VGA × 15 | 0x14 (sysdiv=1,mdiv=4) | 0x38 = 56 | 448 MHz | 0x0A | OK (stock NXP) |
-| VGA × 30 | 0x14 | 0x38 = 56 | 448 MHz | **0x14** | Fix — era 0x0A greșit |
-| VGA × 45 | 0x14 | **0x54 = 84** | **672 MHz** | **0x0D** | Nou — PLL mult ×1.5 |
+| VGA × 30 | 0x14 | 0x38 = 56 | 448 MHz | **0x14** | Fix — was 0x0A, wrong |
+| VGA × 45 | 0x14 | **0x54 = 84** | **672 MHz** | **0x0D** | New — PLL mult ×1.5 |
 | 720p × 30 | 0x21 (sysdiv=2,mdiv=1) | 0x69 = 105 | 840 MHz | 0x0A | OK (stock NXP) |
-| VGA × 60 | 0x14 | 0x70 = 112 | 896 MHz | 0x0A | **HUNG** — vezi mai jos |
+| VGA × 60 | 0x14 | 0x70 = 112 | 896 MHz | 0x0A | **HUNG** — see below |
 
-**De ce a eșuat VGA × 60**: valoarea `mult=112` dă PLL_output=896 MHz,
-valid în spec, și `tHsSettle` a fost setat pentru 896 MHz.  Dar
-driverul Linux aplică în paralel modificări la `0x3037` (PLL pre-div)
-și `0x3108` (SCLK divider) care nu sunt exprimabile prin aceste 6
-câmpuri din structura statică NXP.  Fără acele register companions,
-lane-sync-ul CSI-2 eșuează silent.  Pentru a activa VGA × 60 ar
-trebui fie:
-- extensia tabelului static cu 2 câmpuri extra, SAU
-- un hook post-`CAMERA_DEVICE_Init` care emite SCCB writes manuale.
+**Why VGA × 60 failed**: the value `mult=112` gives PLL_output=896 MHz,
+valid per spec, and `tHsSettle` was set for 896 MHz.  But the
+Linux driver applies in parallel changes to `0x3037` (PLL pre-div)
+and `0x3108` (SCLK divider) which cannot be expressed through these 6
+fields of the static NXP structure.  Without those companion registers,
+the CSI-2 lane sync fails silently.  To enable VGA × 60 one would
+need either:
+- extending the static table with 2 extra fields, OR
+- a post-`CAMERA_DEVICE_Init` hook that issues manual SCCB writes.
 
-Ambele sunt out-of-scope pentru sprint-ul curent.
+Both are out of scope for the current sprint.
 
-### E23 — Verificare vizuală (no cross-contamination)
+### E23 — Visual verification (no cross-contamination)
 
-La 21 fps alternat cu flip MUX pe fiecare EOF, întrebarea critică
-era: există **amestec** între frame-uri cam0 și cam1?  E17 documentase
-la 720p/threshold=1 o tearing mid-buffer când MUX-ul flipa în mijlocul
-unui DMA — am vrut proof vizual la noul rate.
+At 21 fps alternating with a MUX flip on every EOF, the critical question
+was: is there any **mixing** between cam0 and cam1 frames?  E17 had documented,
+at 720p/threshold=1, mid-buffer tearing when the MUX flipped in the middle of
+a DMA — we wanted visual proof at the new rate.
 
-`_e23_vga45_alt_capture.py` rulează două faze:
+`_e23_vga45_alt_capture.py` runs two phases:
 
-1. **Phase 1**: pipeline paralel cu `ratio(1,1)` timp de 80 frame-uri →
-   fps și cam_stats (confirmare healthy run).
-2. **Phase 2**: stop pipeline, loop manual `select(cam) + jpeg(70)`
-   pentru 10 perechi (cam0, cam1), save fiecare JPEG cu cam ID în nume.
+1. **Phase 1**: parallel pipeline with `ratio(1,1)` for 80 frames →
+   fps and cam_stats (confirmation of a healthy run).
+2. **Phase 2**: stop the pipeline, manual loop `select(cam) + jpeg(70)`
+   for 10 pairs (cam0, cam1), save each JPEG with the cam ID in the name.
 
-Rezultate măsurate:
+Measured results:
 
-| Metric | Valoare |
+| Metric | Value |
 |---|---|
-| Phase 1 fps (alt 1:1) | 20.93 (match cu E22 B) |
+| Phase 1 fps (alt 1:1) | 20.93 (matches E22 B) |
 | Phase 2 captures saved | **20 / 20** |
-| `cam_stats.switch_ok_eof` delta | **22** — toate switch-urile au folosit calea EOF-ISR |
+| `cam_stats.switch_ok_eof` delta | **22** — all switches used the EOF-ISR path |
 | `cam_stats.switch_fallback` delta | 0 — zero fallback polling |
-| `cam_stats.drain_timeout` delta | 0 — zero timeout |
+| `cam_stats.drain_timeout` delta | 0 — zero timeouts |
 
-**Verificare vizuală** (`experiments/s054_e23_vga45_alt/001_e23_alt_frames/`):
+**Visual verification** (`experiments/s054_e23_vga45_alt/001_e23_alt_frames/`):
 
-- `004_cam0_144ms_25720b.jpg` — cam0: tufă de liliac + perete (scena cam0 normală)
-- `005_cam1_167ms_27759b.jpg` — cam1: liliac + stropitoare albastră (scena cam1 distinctă)
-- Toate 20 JPEG-urile sunt clean — zero mid-buffer seam, zero bleed
-  inter-camera, zero tearing.  MUX-flip pe EOF este dovedit glitch-free
-  la 74 fps effective sensor rate.
+- `004_cam0_144ms_25720b.jpg` — cam0: lilac bush + wall (the normal cam0 scene)
+- `005_cam1_167ms_27759b.jpg` — cam1: lilac + blue watering can (the distinct cam1 scene)
+- All 20 JPEGs are clean — zero mid-buffer seam, zero inter-camera
+  bleed, zero tearing.  The MUX flip on EOF is proven glitch-free
+  at 74 fps effective sensor rate.
 
-### Config recomandat pentru camera switching production
+### Recommended config for production camera switching
 
 ```python
 sentai.camera.init(1)                 # streaming mode
 sentai.pipeline.direct_tensor(1)      # ping-pong buffers
 sentai.camera.switch_drain(1)         # minimum drain (MUX flip glitch-free)
-sentai.camera.ratio(1, 1)             # ISR alternează fiecare EOF
-sentai.pipeline.start(...)            # pipeline paralel PrepTask ∥ InferTask
+sentai.camera.ratio(1, 1)             # ISR alternates on every EOF
+sentai.pipeline.start(...)            # parallel pipeline PrepTask ∥ InferTask
 ```
 
-Asta oferă **21 fps alternat stabil** cu ambele camere active simultan,
-fără cod de switching explicit în Python.  Dovada empirică:
+This gives a **stable 21 fps alternating** with both cameras active simultaneously,
+with no explicit switching code in Python.  Empirical proof:
 `experiments/s054_e23_vga45_alt/`.
 
-### Tabel măsurători cumulative (update)
+### Cumulative measurements table (update)
 
-| Versiune | FPS | Note |
+| Version | FPS | Notes |
 |---|---|---|
 | Baseline (720p + memcpy stg→tensor) | 13.3 | Original |
-| + `direct_tensor` (ping-pong buffer) | 17.3 | Elimină memcpy 17 ms |
+| + `direct_tensor` (ping-pong buffer) | 17.3 | Eliminates 17 ms memcpy |
 | + VGA 640×480 @ 30 (`pclkPeriod=0x14` fix) | 24.4 | MIPI DPHY fix |
-| + VGA 640×480 @ 45 (`pllCtrl2=0x54`) | 24.45 | Cam driver mai rapid — headroom pt switching |
-| + ratio(1,1) alternare ISR (VGA/45) | **21.0 alt** | 10.5 fps / cam simultan — E22/E23 |
+| + VGA 640×480 @ 45 (`pllCtrl2=0x54`) | 24.45 | Faster camera driver — headroom for switching |
+| + ratio(1,1) ISR alternation (VGA/45) | **21.0 alt** | 10.5 fps / cam simultaneously — E22/E23 |
 
-**Total speedup cumulativ: +84%** față de baseline (și enable switching
-paralel real, nu secvențial).
+**Total cumulative speedup: +84%** over the baseline (and enables real
+parallel switching, not sequential).
+
+## Update 2026-11-01 — Packed YUV420 capture at 2 B/px, true SXGA fps rows, lockstep with the TPU
+
+Experiments s259–s264 (OP-S10-W24-T14..T17), builds 1723–1756, one camera.
+
+**ERR051248 does not force XYUV8888.**  The errata (IMXRT1170ACE §2.22) only forbids
+RAW and YUV422-10bit from MIPI.  The 4 B/px capture is the VIDEO_MUX pixel
+reformatter's doing (YUV422 → 24-bit YUV444 pixel link, stored `[V,U,Y,0]`).  The
+OV5640's MIPI-only YUV420 output (`0x4300 = 0x5F`, CSI-2 legacy YUV420, UYY/VYY
+lines) passes through the 24-bit receiver when the receiver width is set to half the
+sensor width: memory holds `[C,Y1,Y2,0]` per pixel pair, C = U on even rows and V on
+odd rows — **2 B/px, pixel-exact** at VGA (30/45/60) and SXGA.  SXGA additionally needs
+the manual DVP PCLK divider (`0x460C = 0x22`, `0x3824 = 0x01`); with the SDK's auto
+divider the bytes arrive rotated.  CSI writes per SXGA frame 4.9 → 2.46 MB.  Knob:
+`sentai.camera.packed420(1)` before `init()`.  Dead ends (do not retry): CSICR18
+DATA_FROM_MIPI / DOUBLE_CMPNT / YU_SWAP / MIPI_DATA_FORMAT have no effect on RT1176
+(the CSI only sees the pixel link); the 16-bit receiver stores the {U,V} plane; the
+8-bit receiver reads data[9:2]; `0x4814` is not a data-type override; OV5640 Y8 is not
+luma; CR20 gray-scale mode stalls the CSI.
+
+**PXP consumer (option B).**  No PXP input format matches the packed layout, but PXP
+RGB888 (32-bit) → RGB888P (24-bit) drops the padding byte and yields `[C,Y1,Y2]` at
+1.5 B/px — the same byte count as the planar Y + UV input of the YUV420 detectors.
+PXP per SXGA frame 62 → 25 ms (legacy XYUV → YUV420 repack vs byte-drop).  PXP
+16×16 processing blocks (`camera.pxp_block16(1)`, default off) cut the repack a further
+30–40 % under CSI load, enough to prepare 30/30 frames at a true 30 fps without the
+TPU, but they starve the EHCI reads while the TPU streams (invoke 70 → 77 ms).
+
+**The SDK's SXGA rows were mis-keyed.**  The 1280×960 rows added in April were
+cloned from the 720P/30 row (PLL 84×); with 984 lines per frame they stream 22.6 and
+11.2 frames/s (CSI `CR3.FRMCNT`), not 30 and 15 (`sensor_frames()` over-counts ~15 %).
+Frame rate ∝ PLL multiplier / (sysdiv × mipi_div), and mipi_div also divides PCLK.
+Since build 1756 (SDK patch `0007-ov5640-sxga-true-fps-rows`) the keys mean the
+measured rate: `init(1, 15)` = 15.0 fps (PLL 0x70, sysdiv 4, settle 0x13), `init(1, 30)`
+= 30.0 fps (PLL 0x70, sysdiv 2, settle 0x12), `init(1, 22)` = 22.6 fps (the old row,
+kept for the legacy 4 B/px capture).  Legacy XYUV at a true 30 fps writes 147 MB/s
+into SDRAM and hung the board under the full pipeline, so `init(1, 30)` without
+`packed420(1)` returns -12.
+
+**Camera and TPU in lockstep.**  The SXGA detection pipeline is USB-bound at ~61 ms
+per invoke (the Edge TPU takes input at a flat 35 MB/s).  With the sensor at 30 fps it
+processes 54 % of the frames with a non-deterministic slip (bad for two-camera
+alternation); with the sensor at a true 15 fps it processes **every** frame (1805 of
+1806 over 120 s, 60 ms invoke inside the 66.7 ms period).  Measure lockstep with the
+CSI frame counter and the InferTask ok count read in one REPL statement in steady
+state; a start..stop window under-counts by ~8 %.
+
+**Slice-level processing.**  The PXP can chase the CSI inside the frame: identify the
+in-flight buffer from DMASA_FB1/FB2 plus padding-byte markers (invalidate the D-cache
+line before every CPU poll of a camera buffer), then run the PXP per 128-row slice
+behind the write pointer — end-of-frame → frame ready 26.9 → 3.4 ms at SXGA,
+bit-exact (`camera.chase_test`, `pipeline.chase_prep`).  A CSI line ring in OCRAM is
+impossible: the CSI DMA is SOF-gated and never alternates FB1/FB2 mid-frame (done
+rate stays 30/s with a 128-line receiver height).
+
+**Benchmark hygiene.**  The first pipeline run after `camera.init()` is slow for ~10 s
+(autotune/genlock steals frames); always discard a warm-up run.

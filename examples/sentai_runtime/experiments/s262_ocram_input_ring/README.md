@@ -1,5 +1,7 @@
 # EXP-s262 — OCRAM input ring: PXP producer, USB consumer, one frame streamed (OP-S10-W24-T15 step 3) + the direct-tensor bug
 
+> **fps keys in this README are the pre-build-1756 keys.**  Since 2026-11-01 (SDK patch 0007 rewritten, EXP-s264) the SXGA keys mean the measured frame rate: old key 36 (true 30 fps) = `camera.init(1, 30)`, old key 30 (22.6 fps) = `init(1, 22)`, old key 18 (true 15 fps) = `init(1, 15)`; the old 11.2 fps key 15 is gone.
+
 **Board** 58eb, **builds** 1749–1752, **date** 2026-11-01, one camera, SXGA option B
 (packed YUV420 capture, s259/s260), models from s258.  Operator request: "încearcă
 inelul OCRAM umplut cu cel puțin 3×256 KB buffere pregătite pentru transferul pe USB".

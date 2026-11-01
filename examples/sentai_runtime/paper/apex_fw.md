@@ -256,3 +256,12 @@ Ranked by feasibility and likely reward:
 
 - `scripts/d51.py` — self-contained 8051 disassembler (~10 KB, no dependencies). Usage: `python3 d51.py firmware.bin [--start 0x1E57] [--end 0x1F00]`
 - This document (`paper/apex_fw.md`) — starting point if someone wants to pick up the thread
+
+## Update 2026-11-01 — §8 is only half right
+
+Instruction *caching* across invokes is indeed not exposed, but instruction
+*looping* is possible for programs that fit the 256 KB instruction memory (see
+`coral_hostside.md`, "Update 2026-11-01"): the scalar core runs a loop around
+the program, so the stream is uploaded once and the per-frame traffic is inputs
+and outputs only.  Limit ≤ 16 384 words — VGA detectors fit, the 297 KB SXGA
+program does not.

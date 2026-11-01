@@ -175,3 +175,20 @@ After:
 - A silicon revision from Google (not happening)
 
 **Practical path**: accept that yolo26-class models on this TPU are ins-wire-bound. Reduce ins bytes via smaller models or lower input resolution, and accept 90 ms floor on USB 2.0 / 37 ms on USB 3.0.
+
+## Update 2026-11-01 — the verdict above is superseded for small programs
+
+Later work in `~/work/edgetpu/tinycoral` and `~/work/edgetpu/oracle_lab/INSTRUCTIONS_ONCE.md`
+(verified bit-exact on the USB stick for six VGA YUV420 detectors, −8…−16 % per
+frame) found a software-only way to send the instructions once: wrap the
+compiled program in a loop on the scalar core (4 extra words; both `sync_init` /
+`scsync_init` inside the loop), upload the instruction stream once, then per
+frame send only inputs and read outputs, and interrupt after N frames.  The hard
+condition is that the whole program fits the 256 KB instruction memory
+(≤ 16 384 words): the VGA detectors (5–8 k words) qualify, the SXGA model
+(297 KB) does not.  On single-EP the input of frame k+1 cannot overlap the
+compute of frame k (the device pops on demand).  This also explains the June
+`desc_cache` wedge: after `halt` the scalar core cannot resume.  Firmware
+integration is tracked as OP-S10-W24-T13 (not started); SentAI already opens the
+TPU at kMax and re-sends instructions per inference by design (EXP-s262 notes,
+`project_option_b_packed420_pipeline_w24_t15_t16.md`).
