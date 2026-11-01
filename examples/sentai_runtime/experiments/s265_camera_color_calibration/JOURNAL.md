@@ -386,6 +386,106 @@ per the research note) before any matrix fit can mean anything.  cam0 is consist
 grid and centre (dE 8.7 vs 9.3): its remaining error is a genuine matrix/tone residual.
 Settle time is not a factor: the same four patches read identically at 0.7 / 1.5 / 2.5 s.
 
+## Step 14 — LENC register probe (`lenc_probe.py`, cam1, grey 150, 6x6 image cells)
+
+LENC is enabled (0x5000 bit 7 = 1); G scales 0x5846–49 = 01 8F 01 0C, BR scales 0x5842–45 =
+01 2B 01 92 (SDK values for this mode).  Perturbations and where they land in the image:
+
+| register | change | effect |
+|---|---|---|
+| 0x580E = G matrix cell (2,2) | 0 → 16 | image rows 2–4, cols 1–3, peak at (3,2): **dR +31.5 dG +28.1 dB +27.6** — the green matrix is a luminance gain for all channels, bilinearly interpolated between cell centres; ≈ +1.2 output levels per unit at mid grey |
+| 0x5800 = G cell (0,0) | 35 → 51 | image cell (5,0): bottom-left → **matrix row 0 is the image bottom** (vertical flip), columns not mirrored |
+| 0x5823 = G cell (5,5) | 40 → 56 | image cell (0,5): top-right (consistent) |
+| 0x5830 = BR cell (2,2), high nibble | 4 → 8 | dB +12.5 at image rows 2–3, cols 2–3, R/G untouched → **high nibble = blue gain** |
+| 0x5830 low nibble | 0 → 4 | dR +1.2 at the same cells → **low nibble = red gain**, much weaker per unit (or non-linear near 0) |
+| corner BR bytes | ±4 | ≤ 4 levels: a corner cell covers only a corner of the frame |
+
+Enough for a model-free stage: `lenc_tune.py` measures the per-register Jacobian (36 G + 25 B
+nibbles + 25 R nibbles = 86 captures, ~5 min per camera), then solves a damped, smoothness-
+regularised least-squares update that flattens R/G and B/G to their centre values and lifts
+the corners to 85 % of the centre luminance (full luminance flattening would amplify noise).
+Caveat from the research note: a field measured on the LCD a few cm away includes the panel's
+angular colour shift; a white paper sheet on the screen (backlit diffuser) is the proper flat
+field — asked the operator for one.
+
+## Step 15 — flat field through a paper diffuser (operator put a sheet on the monitor)
+
+Monitor white, A4 sheet(s) on the glass in front of the cameras.  First placement left the
+right quarter of both frames on bare screen (`paper_white_cam*.jpg`); after repositioning the
+sheet covers both fields (`paper_white2_cam*.jpg`), light through the paper ≈ 1/3 of the bare
+screen (G 60–86 at the operating gains).
+
+| field | cam | G falloff | R/G | B/G |
+|---|---|---|---|---|
+| bare screen, grey 150 (step 9) | 0 | 35 % | 0.86–1.02 | 0.94–1.07 |
+| bare screen, grey 150 | 1 | 31 % | **0.89–1.11** (pink ring) | 0.95–1.09 |
+| paper diffuser, white | 0 | 24 % | 0.87–0.99 | 0.90–1.04 |
+| paper diffuser, white | 1 | 31 % | **0.90–1.05** | 0.88–1.02 |
+
+Through the diffuser cam1's colour shading is of the same size as cam0's: a good part of the
+"pink ring" measured on the bare LCD was the panel's angular colour shift seen by a lens a few
+cm away, exactly the caveat in the research note.  The centre-vs-edge yellow/orange anomaly of
+cam1 (steps 11–12) was measured on the bare screen too and must be re-checked through the
+diffuser before any hardware conclusion.  A thin bright line (gap between the sheets) crosses
+cam1's frame; `cell_stats` now uses a robust mean (pixels within 25 % of the cell's median
+luma) so the line does not bias the cells it crosses.  First screen-based LENC run aborted and
+set aside (`iter1/lenc/aborted_screen_run/`); cam1's LENC table restored to the SDK values
+(`lenc_regs_sdk_default.json`) before the diffuser run.
+
+## Step 16 — LENC tuning on the diffuser (`lenc_tune.py --hex ffffff`, 1 round each, `lenc_paper_run1.out`)
+
+86 Jacobian captures per camera (G +8, B nibble +3, R nibble +3), damped (0.8) least squares
+with Tikhonov 0.02·trace and a neighbour-smoothness prior; targets: R/G and B/G equal to the
+centre, corners at 85 % of the centre luminance.
+
+| cam | err rms | G falloff | R/G range | B/G range |
+|---|---|---|---|---|
+| 1 before | 0.110 | 30 % | 0.894–1.053 | 0.881–1.023 |
+| 1 after round 1 | 0.057 | 27 % | **0.947–1.025** | 0.869–0.960 |
+| 0 before | 0.054 | 24 % | 0.870–0.988 | 0.877–0.996 |
+| 0 after round 1 | 0.035 | 23 % | 0.845–0.936 | 0.859–0.924 |
+
+Colour shading halves in one round; the luminance falloff hardly moves (the solver keeps the
+G matrix close to the SDK table under the regularisation, and the corner cells have little
+leverage inside the frame).  B/G drifts down globally (the target is the centre value, which
+itself moves) — a global AWB touch-up follows the LENC stage.  New G/B/R tables in
+`lenc_regs_cam{0,1}.json`; none of the 6-bit values hit the range limit.  Round 2 started from
+this state.
+
+Round 2 (`lenc_paper_run2.out`) converged: cam1 rms 0.057 → 0.056, cam0 0.036 → 0.037; colour
+shading now within ±4 % on both (R/G cam1 0.945–1.021, cam0 0.886–0.941; B/G 0.87–0.95 /
+0.90–0.98), the measurement noise floor at G ≈ 70 through the paper.
+
+## Step 17 — AWB touch-up and grid with the new LENC tables (`iter1/lenc_eval/`)
+
+White balance was NOT done on the diffuser: through the paper the field reads warm on both
+cameras (cam0 88/84/75), the paper changes the spectrum, and the reference is the monitor's
+grey.  Sheets removed, grid back, `tune_colors.py --stages awb` on the mid greys:
+cam0 R 1396 → 1427, B 1278 → 1276; cam1 R 1215 → 1248, B 1228 → 1294.  Then
+`capture.py` + `analyze.py` + `rectify.py` (`grid_rectified.png`):
+
+| cam | before LENC | after LENC + AWB | greys | worst |
+|---|---|---|---|---|
+| 0 | 8.6 | **8.4** | 5.3 | magenta 17.0 |
+| 1 | 19.7 | **19.6** | 6.6 | yellow 54.6 |
+
+LENC removed the module shading but changed the colour error on the grid by only 0.1–0.2 dE:
+the cam1 yellow / magenta problem is not shading.  Full register sets including LENC:
+`iter1/tuned_regs_cam{0,1}_final2.json` (109 registers each).
+
+### Where cam1's residual comes from (conclusion for today)
+
+The primaries (step 10) say it: cam1 separates the monitor's green and blue far worse than
+cam0 (green screen → B 109 vs 76; blue screen → G 133 vs 104).  That crosstalk happens in the
+RAW domain (optics / colour filters).  The OV5640 pipeline applies its gamma to the RAW
+channels *before* the colour matrix (research note, datasheet §5), so a 3x3 matrix sees
+γ(R + kG) and cannot undo a mixing that happened before the non-linearity; this is why the
+analytic CCM predicted no gain and the Jacobian search stalled while every register still
+"worked".  A textbook ISP applies the CCM before gamma; here the only remedy inside the
+sensor would be to switch the RAW gamma off (0x5000 bit 5) and give up the tone curve, which
+the TPU models trained on sRGB images cannot afford.  So the fix is physical: confirm the IR-cut
+filter / module difference (TV remote test, module swap) and replace or match the module.
+
 ## Step 13 — replay test (reproducibility)
 
 Full register snapshot per camera (47 registers: 0x3503, 0x350A/B, 0x3500–02, 0x3400–0x3406,

@@ -29,8 +29,13 @@ def cell_stats(img, cx, cy):
     out = np.zeros((cy, cx, 3))
     for j in range(cy):
         for i in range(cx):
-            roi = arr[j * h // cy:(j + 1) * h // cy, i * w // cx:(i + 1) * w // cx]
-            out[j, i] = roi.reshape(-1, 3).mean(0)
+            roi = arr[j * h // cy:(j + 1) * h // cy, i * w // cx:(i + 1) * w // cx].reshape(-1, 3)
+            # robust mean: drop pixels whose luma is far from the cell median (a gap between
+            # two diffuser sheets lets a bright line of direct screen light through)
+            luma = roi.mean(1)
+            med = np.median(luma)
+            keep = np.abs(luma - med) < max(0.25 * med, 12.0)
+            out[j, i] = roi[keep].mean(0) if keep.sum() > 50 else roi.mean(0)
     return out
 
 

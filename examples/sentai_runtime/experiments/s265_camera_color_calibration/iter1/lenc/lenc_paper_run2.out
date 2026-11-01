@@ -1,0 +1,20 @@
+  cam1 LENC start: G 62..84 (falloff 26 %), R/G 0.944..1.020, B/G 0.870..0.958, err rms 0.057
+    jacobian 10/86
+    jacobian 20/86
+    jacobian 30/86
+    jacobian 40/86
+    jacobian 50/86
+    jacobian 60/86
+    jacobian 70/86
+    jacobian 80/86
+  cam1 LENC round 0: G 62..84 (falloff 26 %), R/G 0.945..1.021, B/G 0.869..0.954, err rms 0.056
+  cam0 LENC start: G 61..81 (falloff 24 %), R/G 0.869..0.965, B/G 0.894..0.963, err rms 0.036
+    jacobian 10/86
+    jacobian 20/86
+    jacobian 30/86
+    jacobian 40/86
+    jacobian 50/86
+    jacobian 60/86
+    jacobian 70/86
+    jacobian 80/86
+  cam0 LENC round 0: G 63..81 (falloff 22 %), R/G 0.886..0.941, B/G 0.902..0.982, err rms 0.037

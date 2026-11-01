@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T18:41:50.214Z
+  modified: 2026-11-01T19:14:05.646Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -46,5 +46,14 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   matrix in the operating configuration), don't fit LENC against a screen a few cm away, use ΔE2000 +
   hold-out patches, a physical ColorChecker is needed for absolute claims; the display can't set the
   deployment white point.
-- Open: LENC stage with a diffuser flat field, ΔE2000 metric, group write (0x3212) of the final set,
-  production integration of the register set (per camera, applied after init).
+- **LENC done (`lenc_tune.py`, paper sheet on the white monitor as diffuser):** G matrix 0x5800–0x5823
+  6x6 = luminance gain for all channels (matrix row 0 = image bottom), BR bytes 0x5824–0x583C 5x5 high
+  nibble = B gain, low nibble = R gain (weak); measured Jacobian (86 captures) + damped LS flattened
+  colour shading to ±4 % on both cameras in 2 rounds.  Most of cam1's "pink ring" on the bare LCD was
+  the panel's viewing angle (through the diffuser cam1 ≈ cam0).  Grid dE after LENC + AWB: cam0 8.4,
+  cam1 19.6 — unchanged → cam1's residual is RAW-domain G/B crosstalk (green screen → B 109 vs 76, blue
+  → G 133 vs 104) that the OV5640 cannot undo because its gamma runs BEFORE the colour matrix; fix is
+  physical (module/IR filter).  Do NOT white-balance on the paper (spectrum shifts warm); AWB on grid greys.
+  Full sets incl. LENC: `iter1/tuned_regs_cam{0,1}_final2.json` (109 regs).
+- Open: ΔE2000 metric + hold-out validation, group write (0x3212) of the final set, production
+  integration of the register set (per camera, applied after init), cam1 module physical check.

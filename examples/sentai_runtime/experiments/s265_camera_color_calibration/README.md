@@ -82,6 +82,7 @@ accuracy; the procedure (locate → measure → closed-loop register tuning) sta
 | + tone | 15 gamma knots, Gauss-Newton on a 24-step grey ramp | 10.6 (7.5) | 18.0 (6.6) | shadows lifted; run after the `reset` stage |
 | + sde / cmx / ccm | saturation, CMX Jacobian, analytic CCM | **8.7 (7.8)** | **17.4 (6.5)** | matrices barely move the error: residual is not 3x3-linear |
 | centre mode | each patch alone at the frame centre | 9.3 | 17.5 | cam1 error is field-position dominated (centre green, edges pink) |
+| + LENC (paper diffuser) + AWB | 86-register measured Jacobian on a flat field, 2 rounds; AWB on grid greys | **8.4 (5.3)** | **19.6 (6.6)** | colour shading ±4 % on both; most of cam1's "pink ring" was the bare LCD's viewing angle; grid dE unchanged → cam1 residual = RAW-domain G/B crosstalk, not correctable after the sensor's pre-matrix gamma |
 
 Dead ends (details in `JOURNAL.md`): gamma-2.2 model for the AWB loop (oscillates),
 GNOME dialogs over the pattern (two runs invalidated → visibility guard), X11 window on the
@@ -91,14 +92,15 @@ light / glare (refuted: patch colour independent of the surround).
 
 ## Result (status 2026-11-01 evening)
 
-- **cam0**: calibrated against the monitor to mean dE76 8.7 (from 17.7); greys within 8;
-  worst patches cyan / red ≈ 18.  Replayable register set `iter1/tuned_regs_cam0_final.json`.
-- **cam1**: 17.4 (from 41.4); greys 6.5; but yellow, magenta, moderate red stay far off
-  (dE 25–50) and the error depends on where the patch sits in the frame: cam1 renders the
-  frame centre green-cyan and the edges pink on a grey field, and turns ColorChecker yellow
-  orange and moderate red orange at the centre.  Not fixable by AWB / CMX / SDE / tone.
-  Hardware suspicion: the cam1 module's optics (IR-cut filter missing or different) — see the
-  physical checks listed in the journal (TV remote, swap modules, move the board back).
+- **cam0**: calibrated against the monitor to mean dE76 8.4 (from 17.7); greys 5.3;
+  worst patch magenta 17.  Replayable register set `iter1/tuned_regs_cam0_final2.json`
+  (109 registers incl. LENC; `tuned_regs_cam0_final.json` = the 47-register set before LENC).
+- **cam1**: 19.6 (from 41.4); greys 6.6; yellow, magenta, moderate red stay far off (dE 25–55).
+  Root cause narrowed down: the module separates green from blue much worse than cam0
+  (primaries test), a RAW-domain crosstalk the OV5640 cannot correct because its gamma runs
+  before the colour matrix.  Hardware suspicion: IR-cut filter / module batch — physical checks
+  pending (TV remote, swap modules).  The LENC table flattened its shading (±4 %) but that was
+  not the cause of the colour error.
 - **Method / tooling** (the deliverable for other OV5640 modules): `locate.py` (monitor →
   camera homography), `tune_colors.py` with stages `reset, expo, tone, awb, sde, cmx, ccm,
   measure` and `--centre`, `--apply <json>` for replay, visibility guard; `shading_map.py`,
