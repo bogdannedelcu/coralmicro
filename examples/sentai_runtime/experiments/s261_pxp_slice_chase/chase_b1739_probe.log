@@ -1,0 +1,109 @@
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> print("PK", sentai.camera.packed420(1))
+print("PK", sentai.camera.packed420(1))
+PK 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=014001E0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[cam] packed420 capture: sensor format 0x5F -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock step 0: phase -10860 us -> cam1 VTS 984+200 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0xA0 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase -6330 us -> cam1 VTS 984+200 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0xA0 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase -1800 us -> cam1 VTS 984+79 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0x27 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock: phase -11 us after 3 step(s) (T=22288 us)
+INIT 0
+>>> 
+>>> print("CI", sentai.camera.current_id())
+print("CI", sentai.camera.current_id())
+CI 1
+>>> 
+>>> sentai.camera.test_pattern(1, 1)
+sentai.camera.test_pattern(1, 1)
+[CAM1] W 0x503D=0x80 (0)
+0
+>>> 
+>>> print("CT", sentai.camera.chase_test(1))
+print("CT", sentai.camera.chase_test(1))
+CT (0, 3, 2189639680, 2184724480, 1024, 1018)
+>>> 
+>>> print("CT", sentai.camera.chase_test(1))
+print("CT", sentai.camera.chase_test(1))
+CT (0, 3, 2189639680, 2199470080, 1038, 1032)
+>>> 
+>>> print("CT", sentai.camera.chase_test(1))
+print("CT", sentai.camera.chase_test(1))
+CT (0, 3, 2194554880, 2189639680, 1051, 1045)
+>>> 
+>>> print("CT", sentai.camera.chase_test(2))
+print("CT", sentai.camera.chase_test(2))
+CT (0, 3, 2184724480, 2194554880, 1064, 1058)
+>>> 
+>>> print("CT", sentai.camera.chase_test(2))
+print("CT", sentai.camera.chase_test(2))
+CT (0, 3, 2184724480, 2199470080, 1078, 1072)
+>>> 
+>>> print("CT", sentai.camera.chase_test(2))
+print("CT", sentai.camera.chase_test(2))
+CT (0, 3, 2184724480, 2189639680, 1092, 1086)
+>>> 
+>>> print("CT", sentai.camera.chase_test(4))
+print("CT", sentai.camera.chase_test(4))
+CT (1, 4, 7642, 85973, 747, 1, 0, 120, 83722, 751, 84475, 748, 85225, 748, 85973, 747)
+>>> 
+>>> print("CT", sentai.camera.chase_test(4))
+print("CT", sentai.camera.chase_test(4))
+CT (0, 3, 2199470080, 2189639680, 1118, 1112)
+>>> 
+>>> print("CT", sentai.camera.chase_test(4))
+print("CT", sentai.camera.chase_test(4))
+CT (0, 3, 2199470080, 2194554880, 1132, 1126)
+>>> 
+>>> print("CT", sentai.camera.chase_test(8))
+print("CT", sentai.camera.chase_test(8))
+CT (0, 3, 2194554880, 2184724480, 1145, 1139)
+>>> 
+>>> print("CT", sentai.camera.chase_test(8))
+print("CT", sentai.camera.chase_test(8))
+CT (0, 3, 2189639680, 2184724480, 1159, 1153)
+>>> 
+>>> print("CT", sentai.camera.chase_test(8))
+print("CT", sentai.camera.chase_test(8))
+CT (0, 3, 2199470080, 2184724480, 1173, 1167)
+>>> 

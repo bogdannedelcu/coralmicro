@@ -1,0 +1,45 @@
+---
+name: project_option_b_packed420_pipeline_w24_t15_t16
+description: "2026-11-01 — option B (packed YUV420 capture + PXP byte-drop) measured in the TPU pipeline (s260): VGA45 44 fps, SXGA30 13.8 fps now USB-bound (70 ms/invoke), PXP 62 → 25 ms; camera+PXP alone SXGA 22.5 fps; slice-chasing PXP (s261) cuts EOF→ready latency to 3.4 ms, bit-exact; CPU polls of camera buffers need D-cache invalidate; staging buffer must be chosen by size not by model"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
+  modified: 2026-11-01T08:12:20.379Z
+---
+
+**EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
+
+- **Option B in the detection pipeline** (`camera.packed420(1)` before init → CSI
+  receiver at half width + sensor 0x4300=0x5F, plus 0x460C=0x22/0x3824=0x01 on SXGA;
+  PrepTask runs `sentai_pxp_pack420_drop` = PXP RGB888(32-bit)→RGB888P(24-bit), the
+  zero byte dropped → `[C,Y1,Y2]` 1.5 B/px, same byte count as Y+UV):
+  VGA45 41.7 → 44.0 fps (sensor rate), PXP 7.0 → 3.6 ms; SXGA30 12.7 → 13.8 fps,
+  PXP 61.6 → 25.2 ms, invoke 76 → 70 ms; the SXGA pipeline is now **USB-bound**
+  (70 ms per 1.84 MB + 0.3 MB instr at 35 MB/s = 14.2 fps cap).  SDRAM per SXGA
+  frame 13.5 → 8.6 MB.  Zero errors.  Next fps lever at SXGA = bytes per invoke
+  (W24-T13 instruction caching), not memory.
+- **Camera + PXP without TPU** (`pipeline.debug_no_invoke(1)`; build 1735 releases
+  the staging buffer in that mode, before it stalled after one frame): VGA 45/45 fps
+  both modes; SXGA legacy 17.5 fps vs option B 22.5 fps.
+- **Benchmark hygiene:** the first pipeline run after `camera.init()` is slow
+  (20–24 fps at VGA45) because the camera autotune/genlock steals frames for ~10 s
+  → always discard a warm-up run.  `sensor_frames()` only advances while frames are
+  dequeued.  AEC night mode (0x3A00 bit 2) was off; dark room did not matter.
+- **Slice-chasing PXP (s261, `camera.chase_test(n)`):** sync on CSI CR3.FRMCNT, read
+  DMASA_FB1/FB2 ~150 µs later (equal = single active buffer), poison the padding
+  byte (byte 3 of the last pixel, always rewritten 0) of each slice's last row in
+  both candidates during vblank, chase the one that clears.  Bit-exact 64/64 runs.
+  Latency EOF→ready: SXGA30 B 26.9 → 3.4 ms (8 slices), VGA45 B 3.0 → 0.4 ms;
+  legacy SXGA PXP per slice (6.4 ms) is slower than the camera (4.1 ms/slice) so it
+  falls behind; option B keeps up.  Throughput unchanged by design.
+- **Gotchas found:** (1) CPU polling of camera frame buffers returns stale D-cache
+  data while the CSI writes SDRAM — invalidate the line before reading, clean after
+  writing (DMA consumers unaffected). (2) `yuv_in_buf()` picks the 1.84 MB SDRAM pair
+  only when a 2-input model is loaded; `sentai_pipeline_staging_buf()` now selects
+  by size (SXGA test without a model wrote 1.84 MB into the 921 KB OCRAM buffer →
+  precise bus error at 0x20400000). (3) CSI write window ≈ active lines only:
+  VGA45 packed 10.9 ms / legacy 21.7 ms; SXGA30 21.8 / 43.6 ms.
+- Open: W24-T15 step 2 (PrepTask starts the repack mid-frame), step 3 (OCRAM line
+  ring; does the CSI DMA alternate FB1/FB2 mid-frame?), W24-T16 production (3-channel
+  stem retrain, frame-layout flag for JPEG/flow/markers).

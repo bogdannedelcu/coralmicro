@@ -53,6 +53,27 @@ with colour bars = C [118,26,139,20,235,113,229,135] (U) / [130,146,20,20,235,23
 image correct.  (The SXGA staging dump is 1.84 MB and `/api/raw` refuses it; the VGA
 check covers the same PXP operation.)
 
+## Camera + PXP only, no TPU (`prep_only.py --tag b1735`)
+
+Operator question: without the USB limit, how many frames per second come out ready
+for the Edge TPU?  `sentai.pipeline.debug_no_invoke(1)` runs PrepTask (grab + PXP)
+with InferTask skipping the transfer (build 1735 also releases the staging buffer in
+that mode; before, the dual-input path waited for a transfer callback that never
+came and PrepTask stalled after one frame).
+
+| phase | prepared frames / s | PXP ms | grab wait ms | prep total ms |
+|---|---|---|---|---|
+| VGA45 legacy | 45.0 | 6.0 | 15.4 | 22.3 |
+| VGA45 option B | 45.0 | 3.0 | 16.5 | 22.3 |
+| SXGA30 legacy | 17.5 | 51.3 | 5.7 | 57.4 |
+| **SXGA30 option B** | **22.5** | 27.0 | 17.7 | 44.7 |
+
+VGA is the sensor rate in both modes.  At SXGA30 the legacy repack alone caps the
+pipeline at 17.5 fps; option B lifts the camera + PXP ceiling to 22.5 fps (the sensor
+in the MIPI YUV420 format delivers ~26 frame-counter ticks/s and the grab lands on
+every other frame boundary when PXP + grab exceed one period).  With the TPU the
+pipeline is USB-bound at 13.8 fps (above), so the prep side now has headroom.
+
 ## Method notes
 
 * Each phase is a fresh boot; the first pipeline run after `camera.init()` is slower

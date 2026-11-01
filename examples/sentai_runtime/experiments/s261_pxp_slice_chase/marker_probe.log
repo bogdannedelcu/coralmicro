@@ -1,0 +1,152 @@
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> sentai.camera.packed420(1)
+sentai.camera.packed420(1)
+1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=014001E0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[cam] packed420 capture: sensor format 0x5F -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock step 0: phase -10846 us -> cam1 VTS 984+200 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0xA0 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase -6317 us -> cam1 VTS 984+200 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0xA0 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase -1786 us -> cam1 VTS 984+79 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0x27 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock: phase 2 us after 3 step(s) (T=22288 us)
+INIT 0
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 36704289
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800048))
+print("V", sentai.sys.peek32(0x40800048))
+V 2147536952
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800034))
+print("V", sentai.sys.peek32(0x40800034))
+V 20972000
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800030))
+print("V", sentai.sys.peek32(0x40800030))
+V 0
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800028))
+print("V", sentai.sys.peek32(0x40800028))
+V 2184724480
+>>> 
+>>> print("V", sentai.sys.peek32(0x4080002C))
+print("V", sentai.sys.peek32(0x4080002C))
+V 2184724480
+>>> 
+>>> sentai.sys.poke32(0x823A38FC, 0xFFFFFFFF)
+sentai.sys.poke32(0x823A38FC, 0xFFFFFFFF)
+>>> 
+>>> sentai.sys.poke32(0x823A3400, 0xFFFFFFFF)
+sentai.sys.poke32(0x823A3400, 0xFFFFFFFF)
+>>> 
+>>> sentai.sys.poke32(0x82419FFC, 0xFFFFFFFF)
+sentai.sys.poke32(0x82419FFC, 0xFFFFFFFF)
+>>> 
+>>> sentai.sys.poke32(0x82384000, 0xFFFFFFFF)
+sentai.sys.poke32(0x82384000, 0xFFFFFFFF)
+>>> 
+>>> print("V", sentai.sys.peek32(0x823A38FC))
+print("V", sentai.sys.peek32(0x823A38FC))
+V 557184
+>>> 
+>>> print("V", sentai.sys.peek32(0x823A3400))
+print("V", sentai.sys.peek32(0x823A3400))
+V 228991
+>>> 
+>>> print("V", sentai.sys.peek32(0x82419FFC))
+print("V", sentai.sys.peek32(0x82419FFC))
+V 294782
+>>> 
+>>> print("V", sentai.sys.peek32(0x82384000))
+print("V", sentai.sys.peek32(0x82384000))
+V 163454
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 49745953
+>>> 
+>>> sentai.sys.poke32(0x823A38FC, 0xFFFFFFFF)
+sentai.sys.poke32(0x823A38FC, 0xFFFFFFFF)
+>>> 
+>>> sentai.sys.poke32(0x823A3400, 0xFFFFFFFF)
+sentai.sys.poke32(0x823A3400, 0xFFFFFFFF)
+>>> 
+>>> sentai.sys.poke32(0x82419FFC, 0xFFFFFFFF)
+sentai.sys.poke32(0x82419FFC, 0xFFFFFFFF)
+>>> 
+>>> sentai.sys.poke32(0x82384000, 0xFFFFFFFF)
+sentai.sys.poke32(0x82384000, 0xFFFFFFFF)
+>>> 
+>>> print("V", sentai.sys.peek32(0x823A38FC))
+print("V", sentai.sys.peek32(0x823A38FC))
+V 557183
+>>> 
+>>> print("V", sentai.sys.peek32(0x823A3400))
+print("V", sentai.sys.peek32(0x823A3400))
+V 4294967295
+>>> 
+>>> print("V", sentai.sys.peek32(0x82419FFC))
+print("V", sentai.sys.peek32(0x82419FFC))
+V 294526
+>>> 
+>>> print("V", sentai.sys.peek32(0x82384000))
+print("V", sentai.sys.peek32(0x82384000))
+V 228991
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800008))
+print("V", sentai.sys.peek32(0x40800008))
+V 58331169
+>>> 
+>>> print("PK", sentai.camera.peek_row(16))
+print("PK", sentai.camera.peek_row(16))
+PK b'~\x80\x03\x00~\x80\x03\x00\x7f\x80\x03\x00\x7f\x80\x03\x00'
+>>> 
+>>> print("V", sentai.sys.peek32(0x40800028))
+print("V", sentai.sys.peek32(0x40800028))
+V 2194554880
+>>> 
+>>> print("V", sentai.sys.peek32(0x4080002C))
+print("V", sentai.sys.peek32(0x4080002C))
+V 2194554880
+>>> 

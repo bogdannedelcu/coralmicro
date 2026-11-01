@@ -3227,6 +3227,185 @@ int sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst) {
   return 0;
 }
 
+// EXP-s261 / W24-T15 step 1: PXP repack that CHASES the CSI writer inside the
+// frame instead of waiting for the full frame.  Self-contained test (pipeline
+// stopped, caller owns the PXP):
+//   1. dequeue one full frame (so we are at the start of the next one) and
+//      return it;
+//   2. the CSI has two armed buffers (DMASA_FB1/FB2); poison the padding byte
+//      (byte 3, always written as 0 by the receiver) of the last pixel of a
+//      detector row in both, and see which one the CSI clears -> that is the
+//      buffer being written right now;
+//   3. poison the same byte at the last row of every slice, and for each slice
+//      wait until the CSI clears it, then run the PXP on that slice only
+//      (packed420 -> byte-drop, legacy -> XYUV->YUV420) into staging slot 0;
+//   4. when the frame is done, dequeue it (must be the chased buffer), run the
+//      full-frame PXP into staging slot 1 and memcmp the two outputs.
+// out[]: ok, n_slices, detect_us (after the dequeue), eof_us (after detect),
+//        done_after_eof_us, cmp_equal, same_buffer, then per slice
+//        (ready_us after detect, pxp_us).  Returns the number of words written
+//        or a negative code.
+extern "C" uint8_t* sentai_pipeline_staging_buf(int slot);
+extern "C" int sentai_pipeline_staging_bytes(void);
+extern "C" int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
+                                         uint8_t* y_dst, uint8_t* uv_dst);
+extern "C" int sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst);
+extern "C" int sentai_detection_is_running(void);
+extern volatile int g_sentai_cam_packed420;   /* defined below (option B capture mode) */
+extern "C" __attribute__((section(".sdram_text")))
+int sentai_pxp_chase_test(int n_slices, uint32_t* out, int out_max) {
+  if (!g_cam_initialized) return -1;
+  if (sentai_detection_is_running()) return -2;
+  if (n_slices < 1 || n_slices > 16 || !out || out_max < 8 + 2 * n_slices) return -3;
+  const int w = (int)g_runtime_cam_w, h = (int)g_runtime_cam_h;
+  const int packed = g_sentai_cam_packed420;
+  const uint32_t pitch = packed ? (uint32_t)(w / 2) * 4u : (uint32_t)w * 4u;
+  const int rows = h / n_slices;                   /* even for all our geometries */
+  if (rows * n_slices != h || (rows & 1)) return -4;
+  uint8_t* dst0 = sentai_pipeline_staging_buf(0);
+  uint8_t* dst1 = sentai_pipeline_staging_buf(1);
+  const int total = sentai_pipeline_staging_bytes();
+  if (!dst0 || !dst1 || total != w * h * 3 / 2) return -5;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  auto now_us = []() { return (uint32_t)vPortGetRunTimeCounterValue(); };
+  /* The marker byte is read by the CPU while the CSI DMA writes the same
+   * line: invalidate the 32-byte cache line before every read and clean it
+   * after every write, so the poll never sees a stale cached value (if the
+   * region is non-cacheable these are no-ops). */
+  auto marker = [&](uint8_t* buf, int row) -> volatile uint8_t* {
+    return (volatile uint8_t*)(buf + (uint32_t)row * pitch + pitch - 1u);
+  };
+  auto rd = [&](volatile uint8_t* p) -> uint8_t {
+    SCB_InvalidateDCache_by_Addr((uint32_t*)((uint32_t)p & ~31u), 32);
+    return *p;
+  };
+  auto wr = [&](volatile uint8_t* p, uint8_t v) {
+    *p = v;
+    SCB_CleanDCache_by_Addr((uint32_t*)((uint32_t)p & ~31u), 32);
+  };
+
+  /* 1. prime the stream (frames only flow while somebody dequeues them), then
+   *    sync to a frame boundary */
+  uint8_t* raw = nullptr;
+  int idx = -1;
+  for (int p = 0; p < 4; p++) {
+    idx = cam->GetRawFrame(&raw);
+    if (idx < 0 || !raw) return -6;
+    cam->ReturnRawFrame(idx);
+  }
+  const uint32_t t0 = now_us();
+
+  /* 2. which buffer is being written now?  The camera task hands the CSI one
+   *    buffer at a time, so the driver programs BOTH DMASA registers with the
+   *    same address (SDK: "if there is only one active buffer ... both set");
+   *    that address is the in-flight buffer and the CSI keeps re-using it
+   *    every frame until a new empty buffer is submitted.  Sync on the CSI
+   *    frame counter (CR3.FRMCNT increments at frame done) so the slice
+   *    markers are poisoned during the vertical blank, before row 0. */
+  /*    With two empties available the two registers hold two different
+   *    buffers and the hardware alternates them.  So: sync on the frame
+   *    counter, let the ISR re-arm (~150 us), poison the slice markers in BOTH
+   *    candidates during the vertical blank, and the candidate whose first
+   *    slice marker clears is the in-flight buffer. */
+  const uint32_t fc0 = (CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT;
+  uint32_t t_sync = 0;
+  while (now_us() - t0 < 100000u) {
+    if (((CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT) != fc0) { t_sync = now_us(); break; }
+    taskYIELD();
+  }
+  if (!t_sync) return -7;
+  while (now_us() - t_sync < 150u) { }
+  uint8_t* cand[2] = { (uint8_t*)CSI->DMASA_FB1, (uint8_t*)CSI->DMASA_FB2 };
+  const int ncand = (cand[0] == cand[1]) ? 1 : 2;
+  for (int c = 0; c < ncand; c++) {
+    if (FramebufferPtrToIndex(cand[c]) < 0) {
+      int n = 0;
+      out[n++] = 0u; out[n++] = 1u; out[n++] = (uint32_t)cand[0]; out[n++] = (uint32_t)cand[1];
+      return n;
+    }
+    for (int k = 0; k < n_slices; k++) wr(marker(cand[c], (k + 1) * rows - 1), 0xFF);
+  }
+  uint8_t* cur = nullptr;
+  uint32_t t_det = 0;
+  while (now_us() - t_sync < 120000u) {
+    for (int c = 0; c < ncand; c++) {
+      if (rd(marker(cand[c], rows - 1)) == 0) { cur = cand[c]; break; }
+    }
+    if (cur) { t_det = now_us(); break; }
+    taskYIELD();
+  }
+  for (int c = 0; c < ncand; c++) {
+    if (cand[c] != cur) for (int k = 0; k < n_slices; k++) wr(marker(cand[c], (k + 1) * rows - 1), 0);
+  }
+  if (!cur) {
+    int n = 0;
+    out[n++] = 0u; out[n++] = 3u; out[n++] = (uint32_t)cand[0]; out[n++] = (uint32_t)cand[1];
+    out[n++] = (CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT; out[n++] = fc0;
+    return n;
+  }
+  /* t_det is the moment slice 0 was complete; the frame started ~one slice
+   * earlier.  Report detect latency relative to the frame-counter sync. */
+  t_det = t_sync;
+
+  /* 3. chase the slices (slice 0 is already complete) */
+  const uint32_t frmcnt_det = (CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT;
+  uint32_t ready_us[16], pxp_us[16];
+  int rc = 0;
+  for (int k = 0; k < n_slices && rc == 0; k++) {
+    volatile uint8_t* m = marker(cur, (k + 1) * rows - 1);
+    const uint32_t tw = now_us();
+    while (rd(m) != 0) {
+      if (now_us() - tw > 120000u) { rc = -8; break; }
+      taskYIELD();
+    }
+    if (rc) {
+      /* diagnostics: ok=0, tag 2, detect latency, failing slice, CSI frame
+       * counter at detect / now, how many slice markers are still poisoned,
+       * which framebuffer index we chased, DMASA regs now */
+      int n = 0;
+      uint32_t still = 0;
+      for (int j = 0; j < n_slices; j++) if (rd(marker(cur, (j + 1) * rows - 1)) == 0xFF) still++;
+      for (int j = 0; j < n_slices; j++) wr(marker(cur, (j + 1) * rows - 1), 0);
+      out[n++] = 0u; out[n++] = 2u; out[n++] = t_det - t0; out[n++] = (uint32_t)k;
+      out[n++] = frmcnt_det; out[n++] = (CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT;
+      out[n++] = still; out[n++] = (uint32_t)FramebufferPtrToIndex(cur);
+      out[n++] = (uint32_t)CSI->DMASA_FB1; out[n++] = (uint32_t)CSI->DMASA_FB2;
+      return n;
+    }
+    ready_us[k] = now_us() - t_det;
+    const uint32_t tp = now_us();
+    const uint8_t* src = cur + (uint32_t)k * rows * pitch;
+    if (packed) {
+      rc = sentai_pxp_pack420_drop(src, w / 2, rows, dst0 + (uint32_t)k * rows * (uint32_t)(w / 2) * 3u);
+    } else {
+      rc = sentai_pxp_xyuv_to_yuv420(src, w, rows, dst0 + (uint32_t)k * rows * (uint32_t)w,
+                                     dst0 + (uint32_t)w * h + (uint32_t)(k * rows / 2) * (uint32_t)w);
+    }
+    pxp_us[k] = now_us() - tp;
+  }
+  for (int k = 0; k < n_slices; k++) wr(marker(cur, (k + 1) * rows - 1), 0);   /* restore */
+  if (rc) return rc < -8 ? rc : -9 + (rc == -8 ? -1 : 0);
+  const uint32_t t_eof = t_det + ready_us[n_slices - 1];
+  const uint32_t t_done = now_us();
+
+  /* 4. reference: the frame we chased must now come out of the queue */
+  uint8_t* raw2 = nullptr;
+  int idx2 = cam->GetRawFrame(&raw2);
+  if (idx2 < 0 || !raw2) return -11;
+  const int same = (raw2 == cur);
+  int rc2 = packed ? sentai_pxp_pack420_drop(raw2, w / 2, h, dst1)
+                   : sentai_pxp_xyuv_to_yuv420(raw2, w, h, dst1, dst1 + (uint32_t)w * h);
+  cam->ReturnRawFrame(idx2);
+  if (rc2) return -12;
+  const int equal = (memcmp(dst0, dst1, (size_t)total) == 0);
+
+  int n = 0;
+  out[n++] = 1u; out[n++] = (uint32_t)n_slices; out[n++] = t_det - t0; out[n++] = t_eof - t_det;
+  out[n++] = t_done - t_eof; out[n++] = (uint32_t)equal; out[n++] = (uint32_t)same; out[n++] = (uint32_t)rows;
+  for (int k = 0; k < n_slices; k++) { out[n++] = ready_us[k]; out[n++] = pxp_us[k]; }
+  return n;
+}
+
 // EXP-s260 option B capture mode: sensor "YUV420 for MIPI only" + CSI receiver
 // at half width (2 B/px, see EXP-s259).  Set before camera.init(); the init
 // path writes the sensor registers to the ACTIVE camera after the OV5640

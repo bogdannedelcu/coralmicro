@@ -515,6 +515,18 @@ extern "C" int sentai_pipeline_dump_staging(const char* path, int slot, uint32_t
     return sentai_fs_write(path, buf, (int)nbytes) ? (int)nbytes : -3;
 }
 
+// EXP-s261: staging buffer pointer for out-of-pipeline PXP experiments (the
+// pipeline must be stopped; the caller owns the PXP).  Slot 0/1.
+extern "C" uint8_t* sentai_pipeline_staging_buf(int slot) {
+    if (slot < 0 || slot > 1) return nullptr;
+    // Size-based, NOT model-based: with no 2-input model loaded g_sentai_yuv_dual
+    // is 0 and yuv_in_buf() would hand out the 921 KB OCRAM buffer for a 1.84 MB
+    // SXGA frame (build 1740 crash: precise bus error at the end of OCRAM).
+    if (yuv_total_bytes() > kMaxStagingSize) return s_tpu_input_buf_sxga[slot & 1];
+    return yuv_in_buf((unsigned)slot);
+}
+extern "C" int sentai_pipeline_staging_bytes(void) { return yuv_total_bytes(); }
+
 extern "C" void sentai_pipeline_bufs(int* cap, int* free_now) {
     if (cap) *cap = s_bufs_free_cap;
     if (free_now) *free_now = s_sem_bufs_free ? (int)uxSemaphoreGetCount(s_sem_bufs_free) : -1;
@@ -1536,6 +1548,13 @@ static void infer_task_fn(void* /*param*/) {
                     pipe_trace(12, (uint16_t)(trace_seq & 1u), trace_seq);
                     g_sentai_tpu_input_done_us = 0;
                     invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
+                    if (s_debug_no_invoke) {
+                        // EXP-s260: no transfer -> the driver's input-done
+                        // callback never fires; release the buffer here so
+                        // PrepTask keeps producing (camera + PXP throughput).
+                        sentai_tpu_set_input_done_sema(nullptr);
+                        xSemaphoreGive(sem_free);
+                    }
                     pipe_trace(14, (uint16_t)(trace_seq & 1u), trace_seq);
                     if (g_sentai_tpu_input_done_us)
                         pipe_trace(13, (uint16_t)(trace_seq & 1u), trace_seq, g_sentai_tpu_input_done_us);

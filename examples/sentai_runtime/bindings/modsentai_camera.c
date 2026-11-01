@@ -262,6 +262,24 @@ static mp_obj_t mod_sentai_cam_packed420(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_packed420_obj, 0, 1, mod_sentai_cam_packed420);
 
+// sentai.camera.chase_test(n_slices) -> tuple.  EXP-s261 / W24-T15 step 1: PXP
+// repack that follows the CSI writer slice by slice inside one frame (pipeline
+// stopped).  Tuple: (ok, n_slices, detect_us, eof_us, done_after_eof_us,
+// cmp_equal, same_buffer, rows_per_slice, ready_us_0, pxp_us_0, ...).  Raises on
+// a negative code (see sentai_pxp_chase_test).
+extern int sentai_pxp_chase_test(int n_slices, uint32_t* out, int out_max);
+static mp_obj_t mod_sentai_cam_chase_test(mp_obj_t n_obj) {
+    uint32_t v[8 + 32];
+    int n = sentai_pxp_chase_test(mp_obj_get_int(n_obj), v, 8 + 32);
+    if (n < 0) {
+        mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("chase_test rc %d"), n);
+    }
+    mp_obj_t t[8 + 32];
+    for (int i = 0; i < n; i++) t[i] = mp_obj_new_int_from_uint(v[i]);
+    return mp_obj_new_tuple((size_t)n, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_chase_test_obj, mod_sentai_cam_chase_test);
+
 // sentai.camera.csi_mode([bus, cr18_or]) -> (bus, cr18_or, CR1, CR3, CR18)
 // EXP-s259 / W24-T14 capture-layer probe: CSI receiver bus width (24 = legacy
 // 4 BPP, 16 or 8 = YUYV 2 BPP) plus raw CSICR18 bits OR'd in after CSI_Init()
@@ -1101,6 +1119,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_yuv_mode),   MP_ROM_PTR(&mod_sentai_cam_yuv_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_mode),   MP_ROM_PTR(&mod_sentai_cam_csi_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_packed420),  MP_ROM_PTR(&mod_sentai_cam_packed420_obj) },
+    { MP_ROM_QSTR(MP_QSTR_chase_test), MP_ROM_PTR(&mod_sentai_cam_chase_test_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_geom),   MP_ROM_PTR(&mod_sentai_cam_csi_geom_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_settle), MP_ROM_PTR(&mod_sentai_cam_csi_settle_obj) },
     { MP_ROM_QSTR(MP_QSTR_yuv420_test), MP_ROM_PTR(&mod_sentai_cam_yuv420_test_obj) },
