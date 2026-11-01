@@ -59,6 +59,24 @@ settle 0x13 — SDK patch `0008-ov5640-sxga-true15-row.patch`, build 1755.  Meas
   11.2 fps period), every frame followed by its invoke; the camera `frame_seq` advances once
   per two frames, the known half-rate counter, not a drop.
 
+## Re-keying (build 1756, SDK patch 0007 rewritten)
+
+Operator, after the first report: a key that does not mean the frame rate is confusing.  The
+SXGA rows are now keyed by the measured rate: **15 = 15.0 fps** (was key 18), **30 = 30.0 fps**
+(was key 36), **22 = 22.6 fps** (the old "30" row, kept only for the legacy 4 B/px capture;
+`init(1, 30)` without `packed420(1)` returns -12 because that mode hung the board in s260); the
+11.2 fps row is gone.  Everything above this section was measured with the old keys.
+
+`rekey_check.py` (`rekey_check.out`): legacy init(1, 30) → -12, init(1, 36) → -10, legacy
+init(1, 22) → 0 at 22.3 frames/s, packed init(1, 30) → 0 at 29.99 frames/s.
+`run_b1756_rekey.out` (20 s steady state each, option B + ring):
+
+| key | camera | processed | ratio | invoke ms |
+|---|---|---|---|---|
+| 15 | 15.02 /s | 14.97 /s | 0.997 (1 frame = read skew) | 60.0 |
+| 22 | 22.51 /s | 16.11 /s | 0.716 | 62.0 |
+| 30 | 30.00 /s | 16.30 /s | 0.544 | 61.0 |
+
 ## Verdict
 
 Yes: with the camera at a true 15 fps (key 18) the SXGA option B + ring pipeline processes

@@ -1,0 +1,7 @@
+version: SentAI v1.1 build 1756 (2026-11-01 18:05:35) board 58eb
+legacy SXGA init(1, 30): INIT -12 (expect -12)
+legacy SXGA init(1, 36): INIT -10 (expect -10, key gone)
+legacy SXGA init(1, 22): INIT 0 (expect 0)
+  CSI FRMCNT rate: 22.32/s (expect 22.6)
+packed SXGA init(1, 30): INIT 0 (expect 0)
+  CSI FRMCNT rate: 29.99/s (expect 30.0)

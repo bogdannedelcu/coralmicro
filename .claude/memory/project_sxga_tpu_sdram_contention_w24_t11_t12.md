@@ -44,7 +44,7 @@ metadata:
 - **CORRECTION 2026-11-01 (s260):** the "SXGA 30 fps" row (fps key 30) really runs at
   **22.6 fps** (CSI CR3.FRMCNT; cloned from 720P/30, 984 lines) and "15" at ~11.3;
   `sensor_frames()` over-counts ~15 %.  All s258 "camera 30" numbers are at 22.6.
-  True 30 fps = fps key 36 (PLL 0x70, SDK patch 0007); legacy XYUV hangs the board
+  True 30 fps = fps key 30 since build 1756 (key 36 in builds 1742-1755; PLL 0x70, SDK patch 0007); legacy XYUV hangs the board
   there (147 MB/s CSI), option B (packed YUV420, s260) runs.
 - Lesson: profile before theorising — the PXP-yield and double-buffer hypotheses
   were both wrong; the trace + per-tag URB stats + EHCI error bits found the

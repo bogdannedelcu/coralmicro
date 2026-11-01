@@ -23,16 +23,20 @@ MODELS = {
     (640, 480): '/models/c2f_yuv420_int8_edgetpu.tflite',
     (1280, 960): '/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite',
 }
+# SXGA fps keys were re-keyed to the MEASURED frame rate on 2026-11-01 (EXP-s264, SDK patch 0007):
+# the old key 30 (22.6 fps) is now 22, the old true-30 key 36 is now 30, the old key 15 (11.2 fps)
+# is gone and key 15 is a true 15 fps.  The phase names below keep their historical meaning
+# ("sxga36" = true 30) so the logs in this folder stay readable; only the init keys changed.
 PHASES = {
     'vga_legacy':  (640, 480, 45, False),
     'vga_b':       (640, 480, 45, True),
-    'sxga_legacy': (1280, 960, 30, False),
-    'sxga_b':      (1280, 960, 30, True),
-    'sxga15_legacy': (1280, 960, 15, False),
-    'sxga36_legacy': (1280, 960, 36, False),
-    'sxga36_b':      (1280, 960, 36, True),
-    'sxga_b_ring':   (1280, 960, 30, 'ring'),
-    'sxga36_b_ring': (1280, 960, 36, 'ring'),
+    'sxga_legacy': (1280, 960, 22, False),
+    'sxga_b':      (1280, 960, 22, True),
+    'sxga15_legacy': (1280, 960, 15, False),   # 15.0 fps now (was 11.2 before the re-keying)
+    'sxga36_legacy': (1280, 960, 30, False),   # init returns -12: legacy 4 B/px at a true 30 fps hangs the board
+    'sxga36_b':      (1280, 960, 30, True),
+    'sxga_b_ring':   (1280, 960, 22, 'ring'),
+    'sxga36_b_ring': (1280, 960, 30, 'ring'),
     'sxga15_b':      (1280, 960, 15, True),
 }
 

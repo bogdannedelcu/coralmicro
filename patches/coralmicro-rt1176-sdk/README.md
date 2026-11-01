@@ -96,38 +96,30 @@ it in `libs/tpu/edgetpu_driver.cc` with per-bit counters and a last-error
 record exposed through `sentai.tpu.urb_sync_stats()['ehci']`.  No control-flow
 change, no new error path.
 
-### `0007-ov5640-sxga-true30-row.patch`
+### `0007-ov5640-sxga-true-fps-rows.patch`
 
-**Why (OP-S10-W24-T16, 2026-11-01, EXP-s260):** the 1280x960 clock rows added
-by patch 0001 were cloned from the SDK's 720P/30 row (PLL 84x, sysdiv 2,
-MIPI div 1).  A 720p frame has ~740 lines, the SXGA frame 984, so the "SXGA
-30 fps" row actually streams **22.6 frames/s** (CSI `CR3.FRMCNT`; the
-firmware's `sensor_frames()` counter over-counts by ~15 %, hence the belief).
-Frame rate scales with PLL multiplier / (sysdiv x mipi_div).
+**Why (OP-S10-W24-T16/T17, 2026-11-01, EXP-s260 + EXP-s264):** the 1280x960
+clock rows of patch 0001 were cloned from the SDK's 720P/30 row (PLL 84x,
+sysdiv 2, MIPI div 1).  A 720p frame has ~740 lines, the SXGA frame 984, so
+the "SXGA 30 fps" row streamed **22.6 frames/s** and the "SXGA 15 fps" row
+**11.2 frames/s** (CSI `CR3.FRMCNT`; the firmware's `sensor_frames()` counter
+over-counts by ~15 %, hence the belief).  Frame rate scales with PLL
+multiplier / (sysdiv x mipi_div).  A key that does not mean the frame rate
+is confusing (operator, 2026-11-01), so the keys now mean the measured rate.
 
-**What:** one more `s_ov5640MipiClockConfigs` row for 1280x960, keyed on the
-fake frame rate **36**, with multiplier 0x70 (112x, PLL 896 MHz — the same
-PLL the VGA/60 row uses) and `pclkPeriod` 0x08; measured 30.0 frames/s.  The
-fps-30 row is kept unchanged so earlier measurements stay reproducible.  The
-receiver's D-PHY settle for (SXGA, 36) is 0x12 in `camera_support.c`;
-`sentai.camera.csi_settle()` can override it.  Note: at a true 30 fps the
-legacy XYUV capture (4 B/px, 147 MB/s) hangs the board (SDRAM starvation of
-the USB/REPL tasks); the packed YUV420 capture (`camera.packed420(1)`) runs.
-
-### `0008-ov5640-sxga-true15-row.patch`
-
-**Why (OP-S10-W24-T17, 2026-11-01, EXP-s264):** the stock "SXGA 15 fps" row
-(patch 0001: sysdiv 4, PLL 84x) is the 22.6 fps row halved — the CSI frame
-counter measures **11.2 frames/s**.  The SXGA detection pipeline runs at
-~15–16 fps (USB-bound), so a sensor row at a true 15 fps lets the Edge TPU
-process every camera frame in lockstep (no frame slip, no desync on camera
-switches).
-
-**What:** one more `s_ov5640MipiClockConfigs` row for 1280x960, keyed on the
-fake frame rate **18** (= 15 x 1.2, the same ratio as 36/30), with the true-30
-row's PLL (0x70, 896 MHz) and sysdiv 4 (`pllCtrl1` 0x41), `pclkPeriod` 0x10;
-measured 14.98 frames/s.  D-PHY settle for (SXGA, 18) is 0x13 in
-`camera_support.c`.  The fps-15 row is kept unchanged.
+**What:** the SXGA rows of `s_ov5640MipiClockConfigs` become
+15 → PLL 0x70 (112x, 896 MHz, the PLL the VGA/60 row uses) with sysdiv 4
+(`pllCtrl1` 0x41), `pclkPeriod` 0x10, measured 15.0 frames/s;
+30 → PLL 0x70 with sysdiv 2, `pclkPeriod` 0x08, measured 30.0 frames/s;
+22 → the old 84x row, measured 22.6 frames/s, kept because the legacy
+XYUV8888 capture (4 B/px, 147 MB/s at 30 fps) starves the SDRAM and hung the
+board under the full pipeline — `sentai_cam_init_full` refuses legacy SXGA at
+key 30 with -12; the packed YUV420 capture (`camera.packed420(1)`, 2 B/px)
+runs it.  The 11.2 fps row is gone.  D-PHY settle rows in `camera_support.c`:
+15 → 0x13, 22 → 0x12, 30 → 0x12; `sentai.camera.csi_settle()` overrides.
+History: between builds 1742 and 1755 the true rows were keyed 36 and 18
+(files 0007-ov5640-sxga-true30-row / 0008-ov5640-sxga-true15-row); the s260,
+s261, s263 and s264 logs of those builds use the old keys.
 
 ## Adding a new patch
 

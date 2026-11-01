@@ -12,7 +12,7 @@ wire, from the pipeline trace ring (t_us, kind, slot, seq):
 Latency normal = t13 - t3 (+ the frame write time already elapsed before the grab);
 latency chase  = t13 - t7 (frame start) and t13 - t8[last] (frame end).
 
-Usage: python3 run_chase_prep.py [--seconds 15] [--fps 30|36] [--tag x]
+Usage: python3 run_chase_prep.py [--seconds 15] [--fps 22|30]  (keys = measured fps since 2026-11-01: 22 = the old "30" row at 22.6 fps, 30 = true 30; the logs here were taken with the old keys 30/36) [--tag x]
 """
 import argparse, ast, os, re, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))

@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T12:39:47.167Z
+  modified: 2026-11-01T16:12:31.392Z
 ---
 
 **EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
@@ -41,7 +41,7 @@ metadata:
   precise bus error at 0x20400000). (3) CSI write window ≈ active lines only:
   VGA45 packed 10.9 ms / legacy 21.7 ms; SXGA30 21.8 / 43.6 ms.
 - **"SXGA30" row = 22.6 fps real** (CSI FRMCNT; `sensor_frames()` over-counts ~15 %).
-  True-30 row added: `camera.init(1, 36)` (PLL 0x70, sysdiv 2, mipi_div 1, settle
+  True-30 row added (keyed 36 until build 1755, key 30 since 1756): `camera.init(1, 30)` (PLL 0x70, sysdiv 2, mipi_div 1, settle
   0x12; SDK patch 0007, build 1742): camera + PXP option B 28.6 prepared fps (PXP
   32.6 ms ≈ frame period), legacy 15.2 fps and the full legacy pipeline HANGS the
   board (REPL silent, USB alive, no crash log; recover with flashtool re-flash);
@@ -74,12 +74,17 @@ metadata:
 - **Chase producer (s263, `pipeline.chase_prep(1)`):** PrepTask repacks the in-flight
   frame slice by slice into the ring: last line → TPU input done 75 → 20 ms, but fps
   15.9 → 13.2 (USB paced by the camera with a 1-frame ring).  Knob, default off.
-- **Lockstep at the pipeline rate (s264, W24-T17, build 1755):** stock "SXGA 15" row = 11.2 fps
-  real; new true-15 row = fps key **18** (PLL 0x70 + sysdiv 4, SDK patch 0008, settle 0x13).
-  Option B + ring at key 18: camera 14.98/s, processed 14.98/s, ratio 1.000 (454/454; 1805/1806
-  in 120 s), invoke 60 ms in a 66.7 ms period, 0 drops → the TPU sees EVERY frame (camera-switch
-  safe).  Key 36 gives 16.3 fps but drops 46 %.  `chase_prep` + key 18 is broken (slow CSI
-  readout → ring consumer timeouts → URB desync): chase is a key-36 knob only.  Measure lockstep
+- **SXGA fps keys = MEASURED fps since build 1756 (SDK patch 0007 rewritten,
+  `0007-ov5640-sxga-true-fps-rows`):** `camera.init(1, 15)` = 15.0 fps (PLL 0x70 + sysdiv 4,
+  settle 0x13), `(1, 30)` = 30.0 fps (packed420 only; legacy 4 B/px at 30 → **-12**, it hung the
+  board), `(1, 22)` = 22.6 fps (the old "30" row, legacy capture only).  Old keys 36/18 (builds
+  1742–1755 logs) are gone; the 11.2 fps row is gone.  Operator: a key that is not the frame
+  rate is confusing — never add fake keys again.
+- **Lockstep at the pipeline rate (s264, W24-T17):** option B + ring at a true 15 fps: camera
+  14.98/s, processed 14.98/s, ratio 1.000 (454/454; 1805/1806 in 120 s), invoke 60 ms in a
+  66.7 ms period, 0 drops → the TPU sees EVERY frame (camera-switch safe).  30 fps gives 16.3 fps
+  but drops 46 %; 22.6 fps gives 16.1 (ratio 0.72).  `chase_prep` + 15 fps is broken (slow CSI
+  readout → ring consumer timeouts → URB desync): chase is a 30-fps knob only.  Measure lockstep
   with CSI FRMCNT and infer ok read in ONE REPL statement in steady state; a start..stop window
   under-counts ~8 %.
 - **CSI line ring in OCRAM = DEAD END:** with IMAG_PARA height 128/480 the CSI DMA done

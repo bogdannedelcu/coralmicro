@@ -15,7 +15,7 @@ for H in (960, 128, 480):
         bd = Board(log)
         bd.q('sentai.camera.yuv_mode(1)', 5); bd.q('sentai.camera.set_hw(1280, 960)', 10)
         bd.q('sentai.camera.packed420(1)', 5); bd.q('sentai.camera.csi_geom(640, %d)' % H, 5)
-        print('  init', bd.last(bd.q('print("INIT", sentai.camera.init(1, 36))', 90), 'INIT'))
+        print('  init', bd.last(bd.q('print("INIT", sentai.camera.init(1, 30))', 90), 'INIT'))
         bd.q('print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))', 90)
         bd.q('sentai.pipeline.debug_no_invoke(1)', 5)
         bd.q('print("START", sentai.pipeline.start(0.5))', 30); time.sleep(2)

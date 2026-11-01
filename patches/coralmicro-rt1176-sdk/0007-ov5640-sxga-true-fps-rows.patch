@@ -1,0 +1,59 @@
+diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
+index d875caf8..fde4604a 100644
+--- a/components/video/camera/device/ov5640/fsl_ov5640.c
++++ b/components/video/camera/device/ov5640/fsl_ov5640.c
+@@ -630,28 +630,46 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+         .pclkDiv     = 0x04,
+         .pclkPeriod  = 0x0a,
+     },
+-    /* sentai 2026-04-24: SXGA 1280x960 clock configs.
+-     * Pixel rate: SXGA@15 = 18.4 MP/s, SXGA@30 = 36.9 MP/s.
+-     * Cloned from 720P row (close bandwidth) with pllCtrl2 bumped to
+-     * 0x54 (bigger PLL multiplier, 84×) to ensure headroom.  15/30
+-     * both exposed; 30 is aggressive — use 15 if 30 fails to lock. */
+-    {
++    /* sentai 2026-04-24: SXGA 1280x960 clock configs (2x2 binned from QSXGA).
++     * sentai 2026-11-01 (EXP-s260/s264, patch 0007): the original rows were
++     * cloned from the 720P/30 row (PLL 84x = 0x54), but the 1280x960 frame has
++     * 984 lines (VTS) instead of 720p's ~740, so they streamed 22.6 and 11.2
++     * frames/s (CSI CR3.FRMCNT) while being keyed 30 and 15.  Frame rate is
++     * proportional to PLL mult / (sysdiv x mipi_div).  The keys now mean the
++     * measured frame rate: 15 and 30 use PLL 112x (0x70, 896 MHz, the same
++     * PLL the VGA/60 row runs); 22 keeps the old 84x row for the legacy
++     * XYUV8888 capture (4 B/px), which starves the SDRAM at a true 30 fps.
++     * pclkPeriod scales with the pixel clock (0x0a x 84/112 = 0x08). */
++    {
++        /* SXGA 15.0 fps measured (sysdiv 4). */
+         .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
+         .framePerSec = 15,
+         .pllCtrl1    = 0x41,
++        .pllCtrl2    = 0x70,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x10,
++    },
++    {
++        /* SXGA 22.6 fps measured: the pre-2026-11-01 "30" row, kept for the
++         * legacy 4 B/px capture path. */
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 22,
++        .pllCtrl1    = 0x21,
+         .pllCtrl2    = 0x54,
+         .vfifoCtrl0C = 0x20,
+         .pclkDiv     = 0x04,
+         .pclkPeriod  = 0x0a,
+     },
+     {
++        /* SXGA 30.0 fps measured (sysdiv 2). */
+         .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
+         .framePerSec = 30,
+         .pllCtrl1    = 0x21,
+-        .pllCtrl2    = 0x54,
++        .pllCtrl2    = 0x70,
+         .vfifoCtrl0C = 0x20,
+         .pclkDiv     = 0x04,
+-        .pclkPeriod  = 0x0a,
++        .pclkPeriod  = 0x08,
+     },
+ };
+ 

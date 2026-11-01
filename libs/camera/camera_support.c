@@ -904,35 +904,28 @@ status_t BOARD_InitMipiCsi(void)
             0x16,
         },
         {
-            /* sentai 2026-04-25: SXGA 1280x960 @ 15 fps.  Pixel rate
-             * 18.4 MP/s, between 720P/15 (13.8) and 1080P/15 (31.1) ->
-             * pick 0x14 (between 0x17 and 0x12). */
+            /* SXGA 1280x960 @ 15 fps (fsl_ov5640.c: PLL 896 MHz, sysdiv 4;
+             * EXP-s264).  Lane rate 2/3 of the 22-fps row's -> between that
+             * row's old 0x14 (sysdiv 4 on PLL 672) and 0x12. */
             FSL_VIDEO_RESOLUTION(1280, 960),
             15,
-            0x14,
+            0x13,
         },
         {
-            /* sentai 2026-04-25: SXGA 1280x960 @ 30 fps.  Pixel rate
-             * 36.9 MP/s, slightly above 720P/30 (27.6) -> use 0x12. */
+            /* sentai 2026-04-25: SXGA 1280x960 at 22.6 fps (PLL 672 MHz, the
+             * pre-2026-11-01 "30" row, legacy 4 B/px capture).  Pixel rate
+             * 27.7 MP/s ~ 720P/30 -> 0x12. */
+            FSL_VIDEO_RESOLUTION(1280, 960),
+            22,
+            0x12,
+        },
+        {
+            /* SXGA 1280x960 @ 30 fps (PLL 896 MHz, sysdiv 2; EXP-s260).  Lane
+             * rate 4/3 of the 22-fps row's; 0x12 measured fine (s260/s262/s264);
+             * sentai.camera.csi_settle() overrides for tuning. */
             FSL_VIDEO_RESOLUTION(1280, 960),
             30,
             0x12,
-        },
-        {
-            /* EXP-s260: SXGA true-30 row (fsl_ov5640.c fps key 36, PLL 896 MHz,
-             * lane rate 4/3 of SXGA30's).  Start from the 672 Mbps rows' 0x12;
-             * sentai.camera.csi_settle() overrides for tuning. */
-            FSL_VIDEO_RESOLUTION(1280, 960),
-            36,
-            0x12,
-        },
-        {
-            /* EXP-s264: SXGA true-15 row (fsl_ov5640.c fps key 18, PLL 896 MHz,
-             * sysdiv 4 -> lane rate 2/3 of the stock SXGA30 row's).  Between
-             * the stock SXGA15 row's 0x14 and SXGA30's 0x12. */
-            FSL_VIDEO_RESOLUTION(1280, 960),
-            18,
-            0x13,
         },
         {
             kVIDEO_Resolution1080P,

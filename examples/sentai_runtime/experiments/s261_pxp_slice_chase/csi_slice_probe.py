@@ -15,7 +15,7 @@ for H in (960, 480, 128):
         bd = Board(log)
         bd.q('sentai.camera.yuv_mode(1)', 5); bd.q('sentai.camera.set_hw(1280, 960)', 10)
         bd.q('sentai.camera.packed420(1)', 5); bd.q('print("G", sentai.camera.csi_geom(640, %d))' % H, 5)
-        out = bd.q('print("INIT", sentai.camera.init(1, 36))', 90); print('  init', bd.last(out, 'INIT'))
+        out = bd.q('print("INIT", sentai.camera.init(1, 30))', 90); print('  init', bd.last(out, 'INIT'))
         for l in out.split('\n'):
             if 'CSI probe' in l: print('   ', l.strip()[:150])
         time.sleep(2)

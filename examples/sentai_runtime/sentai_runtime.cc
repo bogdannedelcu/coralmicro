@@ -4275,10 +4275,14 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
     int streaming, int fps, int hflip, int vflip) {
   /* Validate fps against the patched fsl_ov5640.c VGA table. */
   if (fps != 15 && fps != 30 && fps != 45 && fps != 60 && fps != 90 &&
-      fps != 36 /* EXP-s260: SXGA true-30 row (PLL 112x) */ &&
-      fps != 18 /* EXP-s264: SXGA true-15 row (PLL 112x, sysdiv 4) */) {
+      fps != 22 /* SXGA only: the 22.6 fps PLL-672 row (legacy 4 B/px capture) */) {
     return -10;
   }
+  /* SXGA at a true 30 fps with the legacy XYUV8888 capture (4 B/px, 147 MB/s
+   * of CSI writes) starves the SDRAM: the full pipeline hung the board (REPL
+   * silent, no crash log; EXP-s260).  Only the packed YUV420 capture
+   * (camera.packed420(1), 2 B/px) may run that row; legacy SXGA uses 22. */
+  if (g_runtime_cam_w == 1280u && fps == 30 && !g_sentai_cam_packed420) return -12;
   if (g_cam_initialized) {
     /* Refuse second init at a different fps — it would wedge.
      * Caller must sentai.sys.reset() first. */

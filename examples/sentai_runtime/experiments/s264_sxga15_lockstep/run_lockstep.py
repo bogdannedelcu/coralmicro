@@ -10,7 +10,11 @@ Per fps key: fresh boot, one camera, packed YUV420 + ring, SXGA model, warm-up r
 measured run during which the CSI hardware frame counter (CR3.FRMCNT, +1 per frame the CSI
 completes) is sampled at start and end.  processed / csi_frames is the lockstep ratio.
 
-Usage: python3 run_lockstep.py [--seconds 20] [--keys 15,36] [--tag x]
+Usage: python3 run_lockstep.py [--seconds 20] [--keys 15,30] [--tag x]
+
+fps keys (= measured frame rate since 2026-11-01, SDK patch 0007): 15 = 15.0 fps, 22 = 22.6 fps
+(old "30" row), 30 = 30.0 fps.  The build-1754/1755 logs in this folder used the old keys:
+15 = 11.2 fps, 18 = 15.0 fps, 36 = 30.0 fps.
 """
 import argparse, os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -95,7 +99,7 @@ def run_key(key, seconds, log, chase=False):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seconds', type=float, default=20.0)
-    ap.add_argument('--keys', default='15,36')
+    ap.add_argument('--keys', default='15,30')
     ap.add_argument('--chase', action='store_true')
     ap.add_argument('--tag', default=time.strftime('%H%M%S'))
     a = ap.parse_args()

@@ -1,0 +1,54 @@
+
+=== SXGA fps key 15, option B + OCRAM ring
+  SentAI v1.1 build 1756 (2026-11-01 18:05:35) board 58eb
+  init INIT 0
+  reg 3035 = 0x41
+  reg 3036 = 0x70
+  reg 380E = 0x3
+  reg 380F = 0xd8
+  CSI FRMCNT rate idle: 14.88 frames/s
+  ocram_ring: RG 1
+  warm-up run: fps 14.3 (discarded)
+  steady state 20.3 s: CSI frames 305 (15.02/s) | processed 304 (14.97/s) | processed/captured = 0.997 | stale skips in window 0
+  invoke 60.0 ms  cycle 50.0 ms | prep: pxp 30.2 grab 25.6 sem 0.0 | fail 0 | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+  cam stats: stale_skips=2 grab_retry=0 grab_fatal=0 period_us=16717 vblank_us=407 csi_queue_faults=0
+  ring_stats: RS (367, 20185, 1126, 2936, 0, 0)
+  health: {'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+
+=== SXGA fps key 22, option B + OCRAM ring
+  SentAI v1.1 build 1756 (2026-11-01 18:05:35) board 58eb
+  init INIT 0
+  reg 3035 = 0x21
+  reg 3036 = 0x54
+  reg 380E = 0x3
+  reg 380F = 0xd8
+  CSI FRMCNT rate idle: 22.55 frames/s
+  ocram_ring: RG 1
+  warm-up run: fps 15.3 (discarded)
+  steady state 20.3 s: CSI frames 457 (22.51/s) | processed 327 (16.11/s) | processed/captured = 0.716 | stale skips in window 0
+  invoke 62.0 ms  cycle 52.0 ms | prep: pxp 47.5 grab 4.8 sem 0.0 | fail 0 | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+  cam stats: stale_skips=2 grab_retry=0 grab_fatal=0 period_us=22290 vblank_us=543 csi_queue_faults=0
+  ring_stats: RS (394, 21615, 1588, 3144, 0, 1)
+  health: {'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+
+=== SXGA fps key 30, option B + OCRAM ring
+  SentAI v1.1 build 1756 (2026-11-01 18:05:35) board 58eb
+  init INIT 0
+  reg 3035 = 0x21
+  reg 3036 = 0x70
+  reg 380E = 0x3
+  reg 380F = 0xd8
+  CSI FRMCNT rate idle: 29.99 frames/s
+  ocram_ring: RG 1
+  warm-up run: fps 15.6 (discarded)
+  steady state 20.3 s: CSI frames 609 (30.00/s) | processed 331 (16.30/s) | processed/captured = 0.544 | stale skips in window 0
+  invoke 61.0 ms  cycle 48.5 ms | prep: pxp 46.9 grab 1.1 sem 0.0 | fail 0 | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+  cam stats: stale_skips=2 grab_retry=0 grab_fatal=0 period_us=16718 vblank_us=407 csi_queue_faults=0
+  ring_stats: RS (400, 21945, 1065, 3192, 0, 1)
+  health: {'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+
+=== summary (b1756_rekey)
+key     csi/s      fps  invoke   cycle    pxp   ratio  stale  fail
+15      15.02    14.97    60.0    50.0   30.2   0.997      0     0
+22      22.51    16.11    62.0    52.0   47.5   0.716      0     0
+30      30.00    16.30    61.0    48.5   46.9   0.544      0     0
