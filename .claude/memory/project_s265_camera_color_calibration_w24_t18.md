@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T21:24:22.597Z
+  modified: 2026-11-01T21:29:15.442Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -98,5 +98,11 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   keeps up with every other 2.5 MB frame → use `camera.frame_log(64)` for cadence; cam1 packed codes
   garbage (open). Exposure per mode: lines scale with line time (VGA45 150 lines ≈ 3.4 ms, VGA60 200,
   SXGA15 50, SXGA30 100).
+- **W24-T20 TODO (audit 2026-11-02, `agent/audit_runtime_geometry_2026-11-02.md`):** 9 more places use
+  compile-time VGA constants as SOURCE geometry at SXGA/packed. #1 = D-cache invalidate/clean in
+  libs/camera/camera.cc sized 640x480x4 (m_ncamera is write-back cacheable: MPU region 9 = all SDRAM) →
+  rows ≥ 240 of an SXGA frame can be stale for every CPU reader (incl. the fixed peek_col). Then aux
+  slots (markers/places/flow), RGB model prep, flow publisher, capture_rgb/to_tensor/aifes, jpeg_yuv,
+  peek5_*, yuv420_extract_test, native_res(), set_resolution() as source pitch. Fix next session.
 - Open: production integration (register set per camera after init, group write 0x3212), the linear
   pipeline option above, print target under one steady illuminant, s266 soak / VGA45 / select().
