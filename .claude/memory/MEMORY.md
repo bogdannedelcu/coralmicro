@@ -1,5 +1,6 @@
 # Memory Index
 
+- [OP-S10-W26 pilot follow-me — research done 2026-11-02: one TPU model + M7 lock/bridge/estimator, attitude-error budget, LQR+DOB+CBF controller, anti-cheat note for simulated phone GNSS](project_pilot_follow_me_w26.md) — design in ideas/objects_plan/23_*.md.
 - [EDAPA dataset viewer (LAN, https://dataset.edapa.proiecte.org/) — cookie login, /dvc/* API, 97 synthetic aerial-people datasets / 648 GB (2026-11-02)](reference_edapa_dataset_viewer.md) — reference images for detector-metric experiments.
 - [Camera module registry — IDs + register sets + characterisation in examples/sentai_runtime/camera_modules/ (W24-T22, 2026-11-02)](project_camera_module_registry_w24_t22.md) — operator decision: permanent DB; OTP write DECLINED by the operator (AVDD 2.1 V constraint); identity = connector + AWB fingerprint.
 - [EXP-s265 camera colour calibration vs monitor (W24-T18): locate.py homography + tune_colors.py register stages + replay JSON; cam0 dE76 17.7→8.7, cam1 41.4→17.4 with a field-position colour anomaly (suspected IR-cut filter); GNOME keyring dialog over the pattern ruins runs → visibility guard; show_pattern must force DISPLAY=:0 (2026-11-01)](project_s265_camera_color_calibration_w24_t18.md) — AWB response ~linear not gamma; camera.init() needed after reboot; cam1 mounted 180°.
