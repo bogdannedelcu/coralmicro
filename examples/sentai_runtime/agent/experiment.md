@@ -149,6 +149,21 @@ on other OV5640 modules.  Folder `experiments/s265_camera_color_calibration/` (`
   read without a consumer — confirm with the pipeline running.  Open: alternation counter at
   SXGA30 packed, cam1 packed Y1 band table, cam0 SXGA column.
 
+### 2026-11-02 later — W24-T22 module registry + production register sets (build 1765), s266 iter8 alternation fix (build 1764)
+- Camera module registry `camera_modules/` (IDs SAI-CAM-0001/0002, register sets, characterisation);
+  OTP programming analysed (AVDD 2.1 V needed, rail fixed 2.8 V) and declined by the operator;
+  full register scan 0x3000–0x60FF x2 on both modules: no factory identifier, all inter-module
+  differences volatile (AFC memory, BLC black level +40 LSB on module 2, flicker detection).
+- Alternation at SXGA30 packed was 2:2 because the sensor-period estimate folded to 16.7 ms
+  (plausibility check against the previous estimate, boot default VGA45; VGA30 passed by 2 us);
+  genlock trims were 2x off -> 0x0A0D val 40 -> drift monitor -> ratio_unit 2.  Fixed with a
+  nominal-period window + reset at init.  frame_log_check.py (consumer dequeuing): SXGA30p /
+  SXGA15 / VGA30 all 1:1, genlock ok, sd <= 0.01 ms.
+- Production colour: make_regs.py exports /cam/camN.regs (96 regs, no exposure freeze, auto
+  AWB), camera.init() applies them (group-hold batches, refused address classes, E:0A13),
+  camera.load_regs(); read-back 96/96 on both cameras.  Exposure vs fps checked: AEC cap is in
+  lines (980/984 = full frame at every fps); only the 50/60 Hz band steps are VGA30-only.
+
 ### Open after this session
 Option B production integration (3-channel H×W/2 stem by weight re-indexing, sensor
 row from init, frame-layout flag for JPEG/flow/markers); W24-T13 instruction loop for

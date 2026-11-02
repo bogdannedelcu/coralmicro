@@ -159,6 +159,30 @@ entries, read right after the run with no consumer dequeuing, so the "queue full
   packed the alternation counter must be fixed first (open, W24-T19 follow-up), then measured
   with the pipeline as consumer and `frame_log(64)`.
 
+## iter8 — SXGA30 packed 2:2 root-caused and fixed (build 1764, `frame_log_check.py`)
+
+Root cause (firmware, not the camera): `sentai_cam_phase_from_log` sanity-checked each new
+sensor-period estimate against the **previous** estimate (boot default 22 288 µs = VGA45) and
+halved anything above 1.5× of it.  The first SXGA30 measurement, 33.4 ms, is 2 µs above
+1.5 × 22 288, so it folded to 16.7 ms and then confirmed itself forever; every genlock VTS trim
+was computed for half the real period, genlock reported "not converged" (`E:0A0D:40`), and the
+phase-drift monitor fell back to pair-granularity alternation (`ratio_unit` 2 → tags 1001).
+VGA30 (33.43 ms) passed the same check by 2 µs.  Fix: the plausibility window comes from the
+nominal period of the current fps key and the estimate is reset at init
+(`cam_nominal_period_us`).  `stats()["period_us"]` now reads 33 428 / 66 855 / 33 428 µs.
+
+`frame_log_check.py` reads the FB-done ring **while a consumer dequeues** (the ring pauses when
+the queue is full) and drops the entries before the last log gap:
+
+| mode (build 1764/1765) | period_us | genlock | ratio_unit | tags (64) | FB-done interval | verdict |
+|---|---|---|---|---|---|---|
+| SXGA 30 packed | 33 428 | ok (`E:0A0C`) | 1 | 0101… (100 % flips) | **33.43 ms, sd 0.00** | **PASS 1:1** |
+| SXGA 15 legacy | 66 855 | ok | 1 | 0101… | 66.86 ms, sd 0.01 | PASS 1:1 |
+| VGA 30 | 33 428 | ok | 1 | 0101… | 33.43 ms, sd 0.01 | PASS 1:1 |
+
+The iter7 "two sensors ~17 ms out of phase" was the un-converged genlock, not a sensor
+property: with the trims computed for the right period both sensors lock in 0–1 steps.
+
 ## Files
 
 - `timecode_display.py` (stripes at the frame clock, no Cairo needed), `run_timecode.py`

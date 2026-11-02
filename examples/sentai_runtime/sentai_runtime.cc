@@ -14,6 +14,7 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 #include <unistd.h>
@@ -109,6 +110,10 @@ static inline size_t cam_src_pitch(void) {
   return cam_src_packed() ? (size_t)(cam_src_w() / 2) * (size_t)DEMO_CAMERA_BUFFER_BPP
                           : (size_t)(cam_src_w() + LINE_PADDING) * (size_t)DEMO_CAMERA_BUFFER_BPP;
 }
+// W24-T22: per-module register sets applied at the end of camera init (defined
+// next to sentai_cam_reg_write, below the init path).
+namespace coralmicro { class CameraTask; }
+static void cam_apply_module_regs(coralmicro::CameraTask* cam);
 
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
@@ -3716,9 +3721,22 @@ static constexpr uint32_t kGenlockMaxLines    = 200;  // one correction < 1/4 fr
 static volatile uint32_t g_cam_vts_lines = 984;   // last TIMING_VTS read from a sensor
 static constexpr uint32_t kActiveRows      = 960; // 2x480 binned rows at VGA
 static constexpr uint32_t kDefaultBlankRows = 24;
+// Nominal sensor period from the fps key (SXGA key 22 = 22.6 fps real, 2.7 % off:
+// fine for a plausibility window).  The measured period is only trusted within
+// +-25 % of it (W24-T19 follow-up, 2026-11-02): the old check compared a fresh
+// measurement with the PREVIOUS estimate (boot default 22288 us = VGA45) and
+// halved anything above 1.5x of it, so the first SXGA30 measurement (33.4 ms,
+// 2 us above 1.5 x 22288) folded to 16.7 ms and stayed there, every VTS trim was
+// computed for half the real period, genlock reported "not converged" (0x0A0D
+// val 40) and the drift monitor fell back to pair-granularity alternation
+// (ratio_unit 2 -> tags 1001, EXP-s266 iter7).  VGA30 passed by 2 us of margin.
+static uint32_t cam_nominal_period_us(void) {
+  return g_runtime_fps ? 1000000u / g_runtime_fps : 22222u;
+}
 static uint32_t cam_period_us(void) {
+  const uint32_t Tn = cam_nominal_period_us();
   uint32_t T = g_cam_phase_T_us;
-  if (T < 5000u || T > 100000u) T = g_runtime_fps ? 1000000u / g_runtime_fps : 22222u;
+  if (T < Tn - Tn / 4u || T > Tn + Tn / 4u) T = Tn;
   return T;
 }
 extern "C" uint32_t sentai_cam_vblank_us(void) {
@@ -3779,10 +3797,11 @@ extern "C" int sentai_cam_phase_from_log(int32_t* phi_us, uint32_t* T_us) {
     else if (ns >= 4)  T = cam_median_i32(steady, ns);
     else return -2;
   }
-  // Sanity: the sensor period is known from VTS; a log that mixes regimes
-  // can still fold to a multiple of it.
+  // Sanity against the NOMINAL period of the current mode (never against the
+  // previous estimate, see cam_period_us): a log that mixes regimes can fold to
+  // a multiple of it.
   {
-    uint32_t Tn = cam_period_us();
+    uint32_t Tn = cam_nominal_period_us();
     if (Tn > 1000u) {
       while (T > (int32_t)(Tn + Tn / 2u)) T /= 2;
       if (T < (int32_t)(Tn - Tn / 4u) || T > (int32_t)(Tn + Tn / 4u)) return -4;
@@ -4392,10 +4411,13 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
   // in place.  Measurement only (no standby restart) at init: the restart
   // path is available via sentai.camera.genlock(1).  Streaming mode only.
   if (streaming && cam->DetectedMask() == 0x3) {
+    g_cam_phase_T_us = cam_nominal_period_us();   // no stale estimate from another mode
     cam_autotune_task_start();
     if (g_cam_genlock_auto >= 1u) (void)sentai_cam_pretrim();      // no flips
     if (g_cam_genlock_auto >= 2u) (void)sentai_cam_genlock(0);     // measured verify (flips)
   }
+  // W24-T22: per-module colour register sets from the user partition.
+  if (streaming) cam_apply_module_regs(cam);
   return 0;
 }
 
@@ -5234,6 +5256,90 @@ extern "C" int sentai_cam_reg_write(int cam_id, int reg, int val) {
   if (val < 0 || val > 0xFF)   return -4;
   auto* cam = coralmicro::CameraTask::GetSingleton();
   return cam->WriteToCam(cam_id, (uint16_t)reg, (uint8_t)val) ? 0 : -5;
+}
+
+// ===================== Per-module register sets (W24-T22, production) ========
+// The two OV5640 modules need different colour registers (EXP-s265: AWB gains,
+// gamma, CMX, SDE, LENC).  The sets live in the project registry
+// (camera_modules/modules.json) and are exported by camera_modules/make_regs.py
+// to the user partition as /cam/cam0.regs and /cam/cam1.regs: text, one
+// "ADDR VAL" hex pair per line, '#' comments.  Sensor registers are volatile
+// and camera.init() re-initialises the sensors, so the file of each detected
+// connector is applied at the end of every init (and on demand with
+// sentai.camera.load_regs()).  Writes go in group-hold batches (0x3212: 0x03
+// start, 0x13 end, 0xA3 launch at the next VSYNC) of at most 32 registers,
+// one frame apart, so no frame carries a half-applied set.
+//
+// Refused addresses (a register file must never change the capture mode the
+// firmware negotiated): system/PLL/reset 0x3000-0x303F, group control 0x3212,
+// timing/window 0x3800-0x383F, OTP 0x3D00-0x3D21, format 0x4300, 0x460C,
+// MIPI 0x4800-0x483F.  Returns registers written (> 0), 0 if the file does not
+// exist, -1 camera off, -2 bad args, -3 read error, -4 refused address,
+// -5 SCCB write failed, -6 parse error.
+static bool cam_regs_addr_allowed(unsigned a) {
+  if (a <= 0x303F) return false;
+  if (a == 0x3212) return false;
+  if (a >= 0x3800 && a <= 0x383F) return false;
+  if (a >= 0x3D00 && a <= 0x3D21) return false;
+  if (a == 0x4300 || a == 0x460C) return false;
+  if (a >= 0x4800 && a <= 0x483F) return false;
+  return a <= 0xFFFF;
+}
+extern "C" int sentai_cam_apply_regs_file(int cam_id, const char* path) {
+  if (!g_cam_initialized) return -1;
+  if ((cam_id != 0 && cam_id != 1) || !path || !path[0]) return -2;
+  if (!FxUserFileExists(path)) return 0;
+  static uint8_t s_regs_buf[4096] __attribute__((section(".sdram_bss")));   // 109 regs ~ 1 KB
+  size_t n = FxUserReadFile(path, s_regs_buf, sizeof(s_regs_buf) - 1);
+  if (n == 0 || n >= sizeof(s_regs_buf) - 1) return -3;
+  s_regs_buf[n] = 0;
+  // Pass 1: parse + validate everything before touching the sensor.
+  uint16_t addrs[256]; uint8_t vals[256]; int count = 0;
+  const char* p = (const char*)s_regs_buf;
+  while (*p) {
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') ++p;
+    if (!*p) break;
+    if (*p == '#') { while (*p && *p != '\n') ++p; continue; }
+    char* e1 = nullptr; unsigned long a = strtoul(p, &e1, 16);
+    if (e1 == p) return -6;
+    char* e2 = nullptr; unsigned long v = strtoul(e1, &e2, 16);
+    if (e2 == e1 || v > 0xFFul) return -6;
+    if (!cam_regs_addr_allowed((unsigned)a)) return -4;
+    if (count >= 256) return -6;
+    addrs[count] = (uint16_t)a; vals[count] = (uint8_t)v; ++count;
+    p = e2;
+    while (*p && *p != '\n') ++p;   // ignore trailing comment
+  }
+  if (count == 0) return 0;
+  // Pass 2: group-hold batches.
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  const uint32_t frame_ms = cam_nominal_period_us() / 1000u + 5u;
+  for (int i = 0; i < count; i += 32) {
+    const int end = (i + 32 < count) ? i + 32 : count;
+    bool ok = cam->WriteToCam(cam_id, 0x3212, 0x03);
+    for (int k = i; k < end && ok; ++k) ok = cam->WriteToCam(cam_id, addrs[k], vals[k]);
+    ok = cam->WriteToCam(cam_id, 0x3212, 0x13) && ok;
+    ok = cam->WriteToCam(cam_id, 0x3212, 0xA3) && ok;
+    if (!ok) return -5;
+    vTaskDelay(pdMS_TO_TICKS(frame_ms));   // let the group launch before the next one
+  }
+  return count;
+}
+// Called at the end of camera init for every detected connector.
+static void cam_apply_module_regs(coralmicro::CameraTask* cam) {
+  for (int c = 0; c < 2; ++c) {
+    if (!(cam->DetectedMask() & (1u << c))) continue;
+    char path[20];
+    snprintf(path, sizeof(path), "/cam/cam%d.regs", c);
+    int rc = sentai_cam_apply_regs_file(c, path);
+    if (rc > 0) {
+      SERR_LOG(SERR_CAM_REGS_APPLIED, ((uint32_t)c << 16) | (uint32_t)rc);
+      printf("[cam] cam%d: %d registers applied from %s\r\n", c, rc, path);
+    } else if (rc < 0) {
+      SERR_LOG(SERR_CAM_REGS_FAIL, ((uint32_t)c << 16) | (uint32_t)(-rc));
+      printf("[cam] cam%d: register set %s NOT applied (%d)\r\n", c, path, rc);
+    }
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────

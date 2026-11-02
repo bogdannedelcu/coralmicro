@@ -2,6 +2,7 @@
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
 #include <stdlib.h>
+#include <stdio.h>
 
 // sentai.camera.init(streaming=1, fps=<current g_runtime_fps>) -> int
 // streaming=1: continuous mode, streaming=0: trigger mode
@@ -922,6 +923,22 @@ static mp_obj_t mod_sentai_cam_reg_write(mp_obj_t cam_o, mp_obj_t reg_o,
 static MP_DEFINE_CONST_FUN_OBJ_3(mod_sentai_cam_reg_write_obj,
                                  mod_sentai_cam_reg_write);
 
+// sentai.camera.load_regs(cam[, path]) -> int.  W24-T22: apply a per-module
+// register set ("ADDR VAL" hex lines) from the user partition to the sensor on
+// connector `cam`, in group-hold batches.  Default path /cam/cam<N>.regs (the
+// file camera.init() applies automatically).  Returns registers written, 0 if
+// the file is absent, <0 on error (see sentai_cam_apply_regs_file).
+extern int sentai_cam_apply_regs_file(int cam_id, const char* path);
+static mp_obj_t mod_sentai_cam_load_regs(size_t n_args, const mp_obj_t *args) {
+    int cam = mp_obj_get_int(args[0]);
+    char dflt[20];
+    snprintf(dflt, sizeof(dflt), "/cam/cam%d.regs", cam);
+    const char* path = (n_args > 1) ? mp_obj_str_get_str(args[1]) : dflt;
+    return mp_obj_new_int(sentai_cam_apply_regs_file(cam, path));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_load_regs_obj, 1, 2,
+                                            mod_sentai_cam_load_regs);
+
 // sentai.camera.ratio([a, b]) -> (a, b)
 //
 // Read/write the stateless auto-alternate schedule.  When both `a` and
@@ -1185,6 +1202,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_test_pattern), MP_ROM_PTR(&mod_sentai_cam_test_pattern_obj) },
     { MP_ROM_QSTR(MP_QSTR_reg_read),   MP_ROM_PTR(&mod_sentai_cam_reg_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_reg_write),  MP_ROM_PTR(&mod_sentai_cam_reg_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_load_regs),  MP_ROM_PTR(&mod_sentai_cam_load_regs_obj) },
     { MP_ROM_QSTR(MP_QSTR_switch_drain), MP_ROM_PTR(&mod_sentai_cam_switch_drain_obj) },
     { MP_ROM_QSTR(MP_QSTR_ratio),      MP_ROM_PTR(&mod_sentai_cam_ratio_obj) },
 };

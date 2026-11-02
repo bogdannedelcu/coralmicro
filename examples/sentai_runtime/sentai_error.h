@@ -177,6 +177,8 @@ extern "C" {
 #define SERR_CAM_PHASE_DRIFT_END  (SERR_MOD_CAM | 0x10)  // Phase monitor: |phase| back inside the window (val=phase us as uint32)
 #define SERR_CAM_PHASE_TRIM       (SERR_MOD_CAM | 0x11)  // cam_tune applied a blind one-frame VTS trim (val=(cam<<16)|lines)
 #define SERR_CAM_PRETRIM          (SERR_MOD_CAM | 0x12)  // camera.init() open-loop pre-trim applied to cam0 (val=lines)
+#define SERR_CAM_REGS_APPLIED     (SERR_MOD_CAM | 0x13)  // Info: per-module register set /cam/camN.regs applied after init (val=(cam<<16)|count) W24-T22
+#define SERR_CAM_REGS_FAIL        (SERR_MOD_CAM | 0x14)  // Per-module register set not applied (val=(cam<<16)|abs(rc): 3 read, 4 refused address, 5 SCCB write, 6 parse)
 
 // ===================== TPU Errors (0x0Bxx) =====================
 #define SERR_TPU_ARENA_ALLOC    (SERR_MOD_TPU | 0x40)   // Arena allocation failed

@@ -110,10 +110,11 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
 - **SIM link is broken at HEAD (pre-existing, OP-S10-W24-T21 TODO):** ~26 ARM-only W24 symbols
   (cam geometry, pack420_drop, chase, TPU URB stats, sysfs, imu, health); the `"%nobits @"`
   section trick must be guarded for SIM (GAS x86 rejects it).
-- **s266 SXGA30 packed finding (iter7, 1763):** `ratio(1,1)` alternates 2:2 (FB-done ring tags
+- **s266 SXGA30 packed 2:2 FIXED (iter8, build 1764):** root cause = sensor-period estimate folded to 16.7 ms by a plausibility check against the PREVIOUS estimate (boot default 22288 us); genlock trims wrong by 2x, 0x0A0D val 40, drift monitor forced ratio_unit 2. Fix: window from the nominal period of the fps key + reset at init (`cam_nominal_period_us`). Now SXGA30 packed / SXGA15 / VGA30 all 1:1 with genlock ok (frame_log_check.py reads the ring WHILE a consumer dequeues). Earlier note kept for history: **s266 SXGA30 packed finding (iter7, 1763):** `ratio(1,1)` alternates 2:2 (FB-done ring tags
   1001…, two entries per `seq` → the alternation counter advances once per two frames in this mode,
   "frame_count half rate" family) and the two sensors are ~17 ms out of phase (33.4/16.4/33.4/50.6 ms);
   `stats()["period_us"]`=16713 there is the 60 Hz grid, not the sensor period. Ring was read with no
   consumer → re-check with the pipeline running. cam0 SXGA column 40 ambiguity is geometry, not cache.
-- Open: production integration (register set per camera after init, group write 0x3212), the linear
+- **Production integration DONE (W24-T22, build 1765):** /cam/cam0.regs + /cam/cam1.regs on the user partition (camera_modules/make_regs.py --upload, 96 regs each, exposure freeze + manual AWB dropped by default), applied automatically at the end of every camera.init() (group-hold batches, refused address classes, E:0A13/0A14), `camera.load_regs(cam[,path])` on demand; read-back verified 96/96 both cameras. When a module moves/changes: update modules.json, re-run make_regs.py --upload.
+- Open: the linear
   pipeline option above, print target under one steady illuminant, s266 soak / VGA45 / select().

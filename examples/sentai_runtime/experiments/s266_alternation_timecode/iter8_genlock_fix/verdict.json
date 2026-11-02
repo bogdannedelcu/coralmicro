@@ -1,0 +1,27 @@
+[
+ {
+  "mode": "sxga15",
+  "version": "SentAI v1.1 build 1765 (2026-11-02 07:56:20) board 58eb",
+  "period_us": 66855,
+  "nominal_us": 66667,
+  "ratio_unit": "1",
+  "genlock_ok": "1",
+  "cam_serr": [
+   "0C",
+   "12"
+  ],
+  "tags": "101010101010101010101010101010101010101010101010101010101010",
+  "alternation_fraction": 1.0,
+  "interval_ms": {
+   "mean": 66.855,
+   "sd": 0.010008470988388581,
+   "min": 66.84,
+   "max": 66.868
+  },
+  "seq_steps": {
+   "0": 29,
+   "1": 30
+  },
+  "pass": true
+ }
+]

@@ -274,6 +274,15 @@ static mp_obj_t sentai_camera_prep_once(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_prep_once_obj,
                                  sentai_camera_prep_once);
 
+// sentai.camera.load_regs(cam[, path]) -> int.  ARM applies a per-module OV5640
+// register set (W24-T22); the SIM has no sensor registers -> 0 (nothing applied).
+static mp_obj_t sentai_camera_load_regs(size_t n_args, const mp_obj_t *args) {
+    (void)n_args; (void)args;
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_load_regs_obj, 1, 2,
+                                            sentai_camera_load_regs);
+
 static mp_obj_t sentai_camera_prep_reset(void) {
     sentai_prep_reset_stats();
     return mp_const_none;
@@ -392,6 +401,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_prep_enable), MP_ROM_PTR(&sentai_camera_prep_enable_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_disable), MP_ROM_PTR(&sentai_camera_prep_disable_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_once),   MP_ROM_PTR(&sentai_camera_prep_once_obj) },
+    { MP_ROM_QSTR(MP_QSTR_load_regs),   MP_ROM_PTR(&sentai_camera_load_regs_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_reset),  MP_ROM_PTR(&sentai_camera_prep_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_stats),  MP_ROM_PTR(&sentai_camera_prep_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&sentai_camera_stats_obj) },

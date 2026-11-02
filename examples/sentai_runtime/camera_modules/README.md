@@ -91,6 +91,23 @@ reference, grid mode + LENC).  Both include the AEC/AGC freeze (`0x3503 = 0x03`)
 exposure/gain measured at tuning time; for production apply everything except
 `0x3500–0x3503` / `0x350A–0x350B` unless the exposure is meant to be frozen.
 
+## Production: how the sets reach the sensors (W24-T22, build ≥ 1765)
+
+```bash
+python3 make_regs.py --upload            # modules.json -> /cam/cam0.regs, /cam/cam1.regs on the board
+python3 make_regs.py --upload --awb manual   # keep the tuned AWB gains instead of auto AWB
+```
+
+`make_regs.py` exports the **production** set of the module recorded on each connector as
+`ADDR VAL` hex lines, dropping the AEC/AGC freeze (auto exposure stays on) and, by default,
+the manual AWB block (0x3400–0x3406: the tuned gains describe the Kamvas white point, the
+field illuminant differs — gamma, CMX, SDE and LENC are what differs per module and they are
+kept).  The firmware applies `/cam/cam<N>.regs` at the end of every `camera.init()` for each
+detected connector (`sentai_cam_apply_regs_file`, group-hold batches, refused address classes
+for anything that would change the capture mode) and logs `E:0A13` / `E:0A14`;
+`sentai.camera.load_regs(cam[, path])` does the same on demand.  **When a module moves to
+the other connector or is replaced, update `modules.json` and re-run `make_regs.py --upload`.**
+
 ## Schema of `modules.json`
 
 ```

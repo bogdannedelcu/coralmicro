@@ -778,6 +778,24 @@ sensor frame rate (15 fps) regardless of Python activity.
 3
 ```
 
+### `sentai.camera.load_regs(cam[, path])` → int
+W24-T22 (build ≥ 1765). Apply a per-module OV5640 register set to the sensor on connector
+`cam` (0/1) from a text file on the user partition: one `ADDR VAL` hex pair per line, `#`
+comments. Default path `/cam/cam<N>.regs`, which `camera.init()` applies **automatically** at
+the end of every init for each detected connector (sensor registers are volatile). Writes go in
+group-hold batches of 32 (0x3212), one frame apart. Refused addresses (capture mode must stay
+the firmware's): 0x3000–0x303F, 0x3212, 0x3800–0x383F, 0x3D00–0x3D21, 0x4300, 0x460C,
+0x4800–0x483F. Returns the number of registers written, 0 if the file is absent, -1 camera off,
+-2 bad args, -3 read error, -4 refused address, -5 SCCB write failed, -6 parse error.
+dmesg: `E:0A13:<cam<<16|count>` applied, `E:0A14:<cam<<16|abs(rc)>` failed. The files are
+generated from the module registry with `camera_modules/make_regs.py [--upload]`.
+```python
+>>> sentai.camera.load_regs(0)
+96
+>>> sentai.camera.load_regs(1, "/cam/test.regs")
+-4          # a line tried to write a timing register
+```
+
 ### `sentai.camera.resolution()` → tuple
 Capture **output** size `(width, height)` used by `jpeg()` / `save_jpeg()` (set with
 `set_resolution()`, defaults to the sensor geometry).  It never describes the frame

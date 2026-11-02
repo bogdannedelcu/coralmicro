@@ -1,0 +1,479 @@
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1764 (2026-11-02 07:51:25) board 58eb
+>>> print(sentai.camera.set_hw(1280, 960))
+
+0
+>>> print(sentai.camera.packed420(1))
+
+1
+>>> print(sentai.camera.init(1, 30))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=028003C0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[CAM0] W 0x460C=0x22 (0)
+[CAM0] W 0x3824=0x01 (0)
+[cam] packed420 capture: sensor format 0x5F + PCLK div manual/1 -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE4 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate
+[cam] genlock step 0: phase -16345 us -> cam1 VTS 984+200 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0xA0 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase -9516 us -> cam1 VTS 984+200 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0xA0 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase -2723 us -> cam1 VTS 984+80 for one frame
+[CAM1] W 0x380E=0x04 (0)
+[CAM1] W 0x380F=0x28 (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock: phase -4 us after 3 step(s) (T=33428 us)
+0
+>>> print(sentai.camera.stats())
+
+{'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 9, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblank_us': 815, 'drain_timeout': 0, 'stale_skips': 0, 'phase_us': -4, 'stalled': 0, 'stall_count': 0, 'period_us': 33428, 'switch_fallback': 0, 'genlock_steps': 3, 'genlock_ok': 1, 'flips_executed': 121, 'ratio_unit': 1, 'flips_deferred': 121}
+>>> print(sentai.camera.ratio_unit())
+
+1
+>>> print(sentai.rtos.dmesg(6000))
+
+[         0] I E:0F01:1
+[      3277] I E:0A06:3
+[      3817] I E:0500:30
+[      4705] I E:0A12:12
+[      6811] I E:0A00:1
+[      7027] I E:0A00:0
+[      7070] I E:0A00:0
+[      8817] I E:0A00:1
+[      8817] I E:0A00:0
+[      8817] I E:0A00:0
+[      8817] I E:0A00:1
+[      8817] I E:0A00:0
+[      8817] I E:0A00:0
+[     13817] I E:0A0C:262140
+>>> exec('\ndef _c(n, byte):\n    import sentai\n    for i in range(n):\n        sentai.camera.peek_col(40, byte)\n')
+
+>>> print(sentai.camera.ratio(1, 1))
+
+(0, 0)
+>>> _c(120, 1)
+
+>>> print(sentai.camera.frame_log(64))
+
+[(20910142, 0, 0, 243), (20943567, 3, 1, 243), (20976999, 1, 0, 244), (21010425, 0, 1, 244), (21043858, 3, 0, 245), (21077282, 1, 1, 245), (21110713, 0, 0, 246), (21144137, 3, 1, 246), (21177567, 1, 0, 247), (21210989, 0, 1, 247), (21244420, 3, 0, 248), (21277842, 1, 1, 248), (21311272, 0, 0, 249), (21344697, 3, 1, 249), (21378130, 1, 0, 250), (21411552, 0, 1, 250), (21444982, 3, 0, 251), (21478404, 1, 1, 251), (21511834, 0, 0, 252), (21545257, 3, 1, 252), (21578688, 1, 0, 253), (21612109, 0, 1, 253), (21645540, 3, 0, 254), (21678966, 1, 1, 254), (21712399, 0, 0, 255), (21745823, 3, 1, 255), (21779256, 1, 0, 256), (21812679, 0, 1, 256), (21846111, 3, 0, 257), (21879535, 1, 1, 257), (21912967, 0, 0, 258), (21946390, 3, 1, 258), (21979823, 1, 0, 259), (22013247, 0, 1, 259), (22046680, 3, 0, 260), (22080103, 1, 1, 260), (22113534, 0, 0, 261), (22146958, 3, 1, 261), (22180390, 1, 0, 262), (22213814, 0, 1, 262), (22247246, 3, 0, 263), (22280669, 1, 1, 263), (22314101, 0, 0, 264), (22347527, 3, 1, 264), (22380961, 1, 0, 265), (22414386, 0, 1, 265), (22447820, 3, 0, 266), (22481244, 1, 1, 266), (22514678, 0, 0, 267), (22548103, 3, 1, 267), (22581536, 1, 0, 268), (22614962, 0, 1, 268), (22648397, 3, 0, 269), (22681822, 1, 1, 269), (22715257, 0, 0, 270), (22748682, 3, 1, 270), (22782115, 1, 0, 271), (22815540, 0, 1, 271), (22848973, 3, 0, 272), (22882396, 1, 1, 272), (22915827, 0, 0, 273), (22949252, 3, 1, 273), (22982684, 1, 0, 274), (23016113, 0, 1, 274)]
+>>> print(sentai.camera.ratio(1, 0))
+
+(1, 1)
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1764 (2026-11-02 07:51:25) board 58eb
+>>> print(sentai.camera.set_hw(1280, 960))
+
+0
+>>> print(sentai.camera.init(1, 15))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=15 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xDE (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 6 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 3 us after 0 step(s) (T=66857 us)
+0
+>>> print(sentai.camera.stats())
+
+{'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 6, 'grab_fatal': 0, 'vblank_us': 1630, 'drain_timeout': 0, 'stale_skips': 0, 'phase_us': 3, 'stalled': 0, 'stall_count': 0, 'period_us': 66857, 'switch_fallback': 0, 'genlock_steps': 0, 'genlock_ok': 1, 'flips_executed': 24, 'ratio_unit': 1, 'flips_deferred': 24}
+>>> print(sentai.camera.ratio_unit())
+
+1
+>>> print(sentai.rtos.dmesg(6000))
+
+[         0] I E:0F01:1
+[      3235] I E:0A06:3
+[      3811] I E:0500:30
+[      4675] I E:0A12:6
+[      8192] I E:0A0C:3
+>>> exec('\ndef _c(n, byte):\n    import sentai\n    for i in range(n):\n        sentai.camera.peek_col(40, byte)\n')
+
+>>> print(sentai.camera.ratio(1, 1))
+
+(0, 0)
+>>> _c(60, 0)
+
+>>> print(sentai.camera.frame_log(64))
+
+[(9413485, 0, 0, 35), (9547231, 3, 0, 36), (9614105, 0, 0, 36), (9680974, 1, 0, 37), (13292137, 2, 0, 64), (13358999, 1, 1, 64), (13425851, 0, 0, 65), (13492714, 2, 1, 65), (13559566, 1, 0, 66), (13626427, 0, 1, 66), (13693279, 2, 0, 67), (13760142, 1, 1, 67), (13826994, 0, 0, 68), (13893853, 2, 1, 68), (13960702, 1, 0, 69), (14027560, 0, 1, 69), (14094411, 2, 0, 70), (14161268, 1, 1, 70), (14228116, 0, 0, 71), (14294973, 2, 1, 71), (14361823, 1, 0, 72), (14428683, 0, 1, 72), (14495534, 2, 0, 73), (14562397, 1, 1, 73), (14629248, 0, 0, 74), (14696108, 2, 1, 74), (14762959, 1, 0, 75), (14829815, 0, 1, 75), (14896664, 2, 0, 76), (14963523, 1, 1, 76), (15030371, 0, 0, 77), (15097232, 2, 1, 77), (15164083, 1, 0, 78), (15230943, 0, 1, 78), (15297790, 2, 0, 79), (15364649, 1, 1, 79), (15431497, 0, 0, 80), (15498356, 2, 1, 80), (15565207, 1, 0, 81), (15632067, 0, 1, 81), (15698919, 2, 0, 82), (15765778, 1, 1, 82), (15832628, 0, 0, 83), (15899486, 2, 1, 83), (15966334, 1, 0, 84), (16033194, 0, 1, 84), (16100045, 2, 0, 85), (16166906, 1, 1, 85), (16233756, 0, 0, 86), (16300612, 2, 1, 86), (16367462, 1, 0, 87), (16434323, 0, 1, 87), (16501176, 2, 0, 88), (16568035, 1, 1, 88), (16634884, 0, 0, 89), (16701745, 2, 1, 89), (16768595, 1, 0, 90), (16835454, 0, 1, 90), (16902303, 2, 0, 91), (16969160, 1, 1, 91), (17036009, 0, 0, 92), (17102866, 2, 1, 92), (17169717, 1, 0, 93), (17236576, 0, 1, 93)]
+>>> print(sentai.camera.ratio(1, 0))
+
+(1, 1)
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1764 (2026-11-02 07:51:25) board 58eb
+>>> print(sentai.camera.init(1, 30))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE4 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 8 us after 0 step(s) (T=33428 us)
+0
+>>> print(sentai.camera.stats())
+
+{'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 12, 'grab_fatal': 0, 'vblank_us': 815, 'drain_timeout': 0, 'stale_skips': 0, 'phase_us': 8, 'stalled': 0, 'stall_count': 0, 'period_us': 33428, 'switch_fallback': 0, 'genlock_steps': 0, 'genlock_ok': 1, 'flips_executed': 27, 'ratio_unit': 1, 'flips_deferred': 27}
+>>> print(sentai.camera.ratio_unit())
+
+1
+>>> print(sentai.rtos.dmesg(6000))
+
+[         0] I E:0F01:1
+[      3194] I E:0A06:3
+[      3811] I E:0500:30
+[      4522] I E:0A12:12
+[      6599] I E:0A0C:8
+>>> exec('\ndef _c(n, byte):\n    import sentai\n    for i in range(n):\n        sentai.camera.peek_col(40, byte)\n')
+
+>>> print(sentai.camera.ratio(1, 1))
+
+(0, 0)
+>>> _c(120, 0)
+
+>>> print(sentai.camera.frame_log(64))
+
+[(13579239, 3, 0, 134), (13612679, 2, 1, 134), (13646099, 1, 0, 135), (13679537, 3, 1, 135), (13712957, 2, 0, 136), (13746393, 1, 1, 136), (13779812, 3, 0, 137), (13813248, 2, 1, 137), (13846668, 1, 0, 138), (13880105, 3, 1, 138), (13913526, 2, 0, 139), (13946964, 1, 1, 139), (13980385, 3, 0, 140), (14013825, 2, 1, 140), (14047247, 1, 0, 141), (14080687, 3, 1, 141), (14114110, 2, 0, 142), (14147549, 1, 1, 142), (14180971, 3, 0, 143), (14214410, 2, 1, 143), (14247830, 1, 0, 144), (14281267, 3, 1, 144), (14314686, 2, 0, 145), (14348123, 1, 1, 145), (14381544, 3, 0, 146), (14414981, 2, 1, 146), (14448401, 1, 0, 147), (14481839, 3, 1, 147), (14515258, 2, 0, 148), (14548695, 1, 1, 148), (14582115, 3, 0, 149), (14615552, 2, 1, 149), (14648973, 1, 0, 150), (14682411, 3, 1, 150), (14715832, 2, 0, 151), (14749269, 1, 1, 151), (14782688, 3, 0, 152), (14816125, 2, 1, 152), (14849544, 1, 0, 153), (14882982, 3, 1, 153), (14916401, 2, 0, 154), (14949837, 1, 1, 154), (14983255, 3, 0, 155), (15016689, 2, 1, 155), (15050105, 1, 0, 156), (15083540, 3, 1, 156), (15116958, 2, 0, 157), (15150394, 1, 1, 157), (15183813, 3, 0, 158), (15217250, 2, 1, 158), (15250668, 1, 0, 159), (15284104, 3, 1, 159), (15317523, 2, 0, 160), (15350960, 1, 1, 160), (15384379, 3, 0, 161), (15417815, 2, 1, 161), (15451236, 1, 0, 162), (15484674, 3, 1, 162), (15518093, 2, 0, 163), (15551529, 1, 1, 163), (15584946, 3, 0, 164), (15618383, 2, 1, 164), (15651803, 1, 0, 165), (15685248, 3, 1, 165)]
+>>> print(sentai.camera.ratio(1, 0))
+
+(1, 1)
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1765 (2026-11-02 07:56:20) board 58eb
+>>> print(sentai.camera.set_hw(1280, 960))
+
+0
+>>> print(sentai.camera.init(1, 15))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=15 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xDE (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 6 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 9 us after 0 step(s) (T=66855 us)
+[CAM0] W 0x3212=0x03 (0)
+[CAM0] W 0x5381=0x23 (0)
+[CAM0] W 0x5382=0x52 (0)
+[CAM0] W 0x5383=0x11 (0)
+[CAM0] W 0x5384=0x03 (0)
+[CAM0] W 0x5385=0x95 (0)
+[CAM0] W 0x5386=0x98 (0)
+[CAM0] W 0x5387=0x9F (0)
+[CAM0] W 0x5388=0xA6 (0)
+[CAM0] W 0x5389=0x0A (0)
+[CAM0] W 0x538A=0x00 (0)
+[CAM0] W 0x538B=0x98 (0)
+[CAM0] W 0x5481=0x0D (0)
+[CAM0] W 0x5482=0x2B (0)
+[CAM0] W 0x5483=0x40 (0)
+[CAM0] W 0x5484=0x5E (0)
+[CAM0] W 0x5485=0x69 (0)
+[CAM0] W 0x5486=0x75 (0)
+[CAM0] W 0x5487=0x7B (0)
+[CAM0] W 0x5488=0x7F (0)
+[CAM0] W 0x5489=0x8E (0)
+[CAM0] W 0x548A=0x97 (0)
+[CAM0] W 0x548B=0x9E (0)
+[CAM0] W 0x548C=0xAC (0)
+[CAM0] W 0x548D=0xBF (0)
+[CAM0] W 0x548E=0xD2 (0)
+[CAM0] W 0x548F=0xE1 (0)
+[CAM0] W 0x5490=0x1D (0)
+[CAM0] W 0x5580=0x02 (0)
+[CAM0] W 0x5583=0x40 (0)
+[CAM0] W 0x5584=0x40 (0)
+[CAM0] W 0x5588=0x41 (0)
+[CAM0] W 0x5589=0x10 (0)
+[CAM0] W 0x3212=0x13 (0)
+[CAM0] W 0x3212=0xA3 (0)
+[CAM0] W 0x3212=0x03 (0)
+[CAM0] W 0x558A=0x00 (0)
+[CAM0] W 0x558B=0xF8 (0)
+[CAM0] W 0x5800=0x23 (0)
+[CAM0] W 0x5801=0x15 (0)
+[CAM0] W 0x5802=0x0F (0)
+[CAM0] W 0x5803=0x10 (0)
+[CAM0] W 0x5804=0x12 (0)
+[CAM0] W 0x5805=0x26 (0)
+[CAM0] W 0x5806=0x0C (0)
+[CAM0] W 0x5807=0x07 (0)
+[CAM0] W 0x5808=0x03 (0)
+[CAM0] W 0x5809=0x04 (0)
+[CAM0] W 0x580A=0x07 (0)
+[CAM0] W 0x580B=0x0E (0)
+[CAM0] W 0x580C=0x08 (0)
+[CAM0] W 0x580D=0x01 (0)
+[CAM0] W 0x580E=0x01 (0)
+[CAM0] W 0x580F=0x00 (0)
+[CAM0] W 0x5810=0x02 (0)
+[CAM0] W 0x5811=0x09 (0)
+[CAM0] W 0x5812=0x08 (0)
+[CAM0] W 0x5813=0x02 (0)
+[CAM0] W 0x5814=0x01 (0)
+[CAM0] W 0x5815=0x00 (0)
+[CAM0] W 0x5816=0x02 (0)
+[CAM0] W 0x5817=0x07 (0)
+[CAM0] W 0x5818=0x0D (0)
+[CAM0] W 0x5819=0x09 (0)
+[CAM0] W 0x581A=0x07 (0)
+[CAM0] W 0x581B=0x09 (0)
+[CAM0] W 0x581C=0x0B (0)
+[CAM0] W 0x581D=0x0F (0)
+[CAM0] W 0x3212=0x13 (0)
+[CAM0] W 0x3212=0xA3 (0)
+[CAM0] W 0x3212=0x03 (0)
+[CAM0] W 0x581E=0x29 (0)
+[CAM0] W 0x581F=0x19 (0)
+[CAM0] W 0x5820=0x13 (0)
+[CAM0] W 0x5821=0x14 (0)
+[CAM0] W 0x5822=0x17 (0)
+[CAM0] W 0x5823=0x29 (0)
+[CAM0] W 0x5824=0x25 (0)
+[CAM0] W 0x5825=0x26 (0)
+[CAM0] W 0x5826=0x0A (0)
+[CAM0] W 0x5827=0x16 (0)
+[CAM0] W 0x5828=0x83 (0)
+[CAM0] W 0x5829=0x15 (0)
+[CAM0] W 0x582A=0x24 (0)
+[CAM0] W 0x582B=0x42 (0)
+[CAM0] W 0x582C=0x23 (0)
+[CAM0] W 0x582D=0x13 (0)
+[CAM0] W 0x582E=0x04 (0)
+[CAM0] W 0x582F=0x42 (0)
+[CAM0] W 0x5830=0x41 (0)
+[CAM0] W 0x5831=0x31 (0)
+[CAM0] W 0x5832=0x14 (0)
+[CAM0] W 0x5833=0x17 (0)
+[CAM0] W 0x5834=0x36 (0)
+[CAM0] W 0x5835=0x34 (0)
+[CAM0] W 0x5836=0x33 (0)
+[CAM0] W 0x5837=0x16 (0)
+[CAM0] W 0x5838=0x24 (0)
+[CAM0] W 0x5839=0x35 (0)
+[CAM0] W 0x583A=0x26 (0)
+[CAM0] W 0x583B=0x38 (0)
+[CAM0] W 0x583C=0x22 (0)
+[CAM0] W 0x583D=0xCE (0)
+[CAM0] W 0x3212=0x13 (0)
+[CAM0] W 0x3212=0xA3 (0)
+[cam] cam0: 96 registers applied from /cam/cam0.regs
+[CAM1] W 0x3212=0x03 (0)
+[CAM1] W 0x5381=0x2C (0)
+[CAM1] W 0x5382=0x4A (0)
+[CAM1] W 0x5383=0x06 (0)
+[CAM1] W 0x5384=0x2A (0)
+[CAM1] W 0x5385=0x5F (0)
+[CAM1] W 0x5386=0x86 (0)
+[CAM1] W 0x5387=0x99 (0)
+[CAM1] W 0x5388=0x87 (0)
+[CAM1] W 0x5389=0x0D (0)
+[CAM1] W 0x538A=0x01 (0)
+[CAM1] W 0x538B=0x98 (0)
+[CAM1] W 0x5481=0x0A (0)
+[CAM1] W 0x5482=0x24 (0)
+[CAM1] W 0x5483=0x38 (0)
+[CAM1] W 0x5484=0x5C (0)
+[CAM1] W 0x5485=0x62 (0)
+[CAM1] W 0x5486=0x62 (0)
+[CAM1] W 0x5487=0x69 (0)
+[CAM1] W 0x5488=0x80 (0)
+[CAM1] W 0x5489=0x91 (0)
+[CAM1] W 0x548A=0x91 (0)
+[CAM1] W 0x548B=0x91 (0)
+[CAM1] W 0x548C=0x96 (0)
+[CAM1] W 0x548D=0xB3 (0)
+[CAM1] W 0x548E=0xBA (0)
+[CAM1] W 0x548F=0xCD (0)
+[CAM1] W 0x5490=0x1D (0)
+[CAM1] W 0x5580=0x02 (0)
+[CAM1] W 0x5583=0x40 (0)
+[CAM1] W 0x5584=0x40 (0)
+[CAM1] W 0x5588=0x41 (0)
+[CAM1] W 0x5589=0x10 (0)
+[CAM1] W 0x3212=0x13 (0)
+[CAM1] W 0x3212=0xA3 (0)
+[CAM1] W 0x3212=0x03 (0)
+[CAM1] W 0x558A=0x00 (0)
+[CAM1] W 0x558B=0xF8 (0)
+[CAM1] W 0x5800=0x25 (0)
+[CAM1] W 0x5801=0x15 (0)
+[CAM1] W 0x5802=0x10 (0)
+[CAM1] W 0x5803=0x10 (0)
+[CAM1] W 0x5804=0x13 (0)
+[CAM1] W 0x5805=0x27 (0)
+[CAM1] W 0x5806=0x0C (0)
+[CAM1] W 0x5807=0x08 (0)
+[CAM1] W 0x5808=0x05 (0)
+[CAM1] W 0x5809=0x06 (0)
+[CAM1] W 0x580A=0x0A (0)
+[CAM1] W 0x580B=0x0E (0)
+[CAM1] W 0x580C=0x08 (0)
+[CAM1] W 0x580D=0x01 (0)
+[CAM1] W 0x580E=0x00 (0)
+[CAM1] W 0x580F=0x00 (0)
+[CAM1] W 0x5810=0x04 (0)
+[CAM1] W 0x5811=0x09 (0)
+[CAM1] W 0x5812=0x06 (0)
+[CAM1] W 0x5813=0x02 (0)
+[CAM1] W 0x5814=0x00 (0)
+[CAM1] W 0x5815=0x00 (0)
+[CAM1] W 0x5816=0x03 (0)
+[CAM1] W 0x5817=0x08 (0)
+[CAM1] W 0x5818=0x0C (0)
+[CAM1] W 0x5819=0x09 (0)
+[CAM1] W 0x581A=0x05 (0)
+[CAM1] W 0x581B=0x07 (0)
+[CAM1] W 0x581C=0x0A (0)
+[CAM1] W 0x581D=0x0F (0)
+[CAM1] W 0x3212=0x13 (0)
+[CAM1] W 0x3212=0xA3 (0)
+[CAM1] W 0x3212=0x03 (0)
+[CAM1] W 0x581E=0x29 (0)
+[CAM1] W 0x581F=0x18 (0)
+[CAM1] W 0x5820=0x12 (0)
+[CAM1] W 0x5821=0x12 (0)
+[CAM1] W 0x5822=0x16 (0)
+[CAM1] W 0x5823=0x29 (0)
+[CAM1] W 0x5824=0x55 (0)
+[CAM1] W 0x5825=0x37 (0)
+[CAM1] W 0x5826=0x07 (0)
+[CAM1] W 0x5827=0x25 (0)
+[CAM1] W 0x5828=0x83 (0)
+[CAM1] W 0x5829=0x26 (0)
+[CAM1] W 0x582A=0x23 (0)
+[CAM1] W 0x582B=0x32 (0)
+[CAM1] W 0x582C=0x13 (0)
+[CAM1] W 0x582D=0x24 (0)
+[CAM1] W 0x582E=0x26 (0)
+[CAM1] W 0x582F=0x43 (0)
+[CAM1] W 0x5830=0x23 (0)
+[CAM1] W 0x5831=0x12 (0)
+[CAM1] W 0x5832=0x24 (0)
+[CAM1] W 0x5833=0x37 (0)
+[CAM1] W 0x5834=0x25 (0)
+[CAM1] W 0x5835=0x33 (0)
+[CAM1] W 0x5836=0x13 (0)
+[CAM1] W 0x5837=0x36 (0)
+[CAM1] W 0x5838=0x45 (0)
+[CAM1] W 0x5839=0x15 (0)
+[CAM1] W 0x583A=0x15 (0)
+[CAM1] W 0x583B=0x18 (0)
+[CAM1] W 0x583C=0x43 (0)
+[CAM1] W 0x583D=0xCE (0)
+[CAM1] W 0x3212=0x13 (0)
+[CAM1] W 0x3212=0xA3 (0)
+[cam] cam1: 96 registers applied from /cam/cam1.regs
+0
+>>> print(sentai.camera.stats())
+
+{'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 6, 'grab_fatal': 0, 'vblank_us': 1630, 'drain_timeout': 0, 'stale_skips': 0, 'phase_us': 9, 'stalled': 0, 'stall_count': 0, 'period_us': 66855, 'switch_fallback': 0, 'genlock_steps': 0, 'genlock_ok': 1, 'flips_executed': 25, 'ratio_unit': 1, 'flips_deferred': 25}
+>>> print(sentai.camera.ratio_unit())
+
+1
+>>> print(sentai.rtos.dmesg(6000))
+
+[         0] I E:0F01:1
+[      3215] I E:0A06:3
+[      3811] I E:0500:30
+[      4636] I E:0A12:6
+[      8152] I E:0A0C:9
+[      8383] I E:0A13:96
+[      8623] I E:0A13:65632
+>>> exec('\ndef _c(n, byte):\n    import sentai\n    for i in range(n):\n        sentai.camera.peek_col(40, byte)\n')
+
+>>> print(sentai.camera.ratio(1, 1))
+
+(0, 0)
+>>> _c(60, 0)
+
+>>> print(sentai.camera.frame_log(64))
+
+[(9398049, 0, 1, 35), (9531815, 3, 1, 36), (9598696, 0, 1, 37), (9665578, 1, 1, 37), (13811867, 2, 1, 68), (13878713, 1, 0, 69), (13945578, 0, 1, 69), (14012422, 2, 0, 70), (14079284, 1, 1, 70), (14146129, 0, 0, 71), (14212994, 2, 1, 71), (14279841, 1, 0, 72), (14346708, 0, 1, 72), (14413555, 2, 0, 73), (14480420, 1, 1, 73), (14547266, 0, 0, 74), (14614133, 2, 1, 74), (14680982, 1, 0, 75), (14747849, 0, 1, 75), (14814696, 2, 0, 76), (14881564, 1, 1, 76), (14948411, 0, 0, 77), (15015278, 2, 1, 77), (15082126, 1, 0, 78), (15148994, 0, 1, 78), (15215840, 2, 0, 79), (15282708, 1, 1, 79), (15349560, 0, 0, 80), (15416426, 2, 1, 80), (15483270, 1, 0, 81), (15550133, 0, 1, 81), (15616978, 2, 0, 82), (15683844, 1, 1, 82), (15750694, 0, 0, 83), (15817562, 2, 1, 83), (15884410, 1, 0, 84), (15951277, 0, 1, 84), (16018122, 2, 0, 85), (16084988, 1, 1, 85), (16151834, 0, 0, 86), (16218698, 2, 1, 86), (16285538, 1, 0, 87), (16352397, 0, 1, 87), (16419240, 2, 0, 88), (16486105, 1, 1, 88), (16552949, 0, 0, 89), (16619811, 2, 1, 89), (16686654, 1, 0, 90), (16753515, 0, 1, 90), (16820355, 2, 0, 91), (16887215, 1, 1, 91), (16954055, 0, 0, 92), (17020917, 2, 1, 92), (17087761, 1, 0, 93), (17154623, 0, 1, 93), (17221469, 2, 0, 94), (17288333, 1, 1, 94), (17355176, 0, 0, 95), (17422037, 2, 1, 95), (17488881, 1, 0, 96), (17555747, 0, 1, 96), (17622596, 2, 0, 97), (17689464, 1, 1, 97), (17756312, 0, 0, 98)]
+>>> print(sentai.camera.ratio(1, 0))
+
+(1, 1)
