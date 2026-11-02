@@ -94,19 +94,35 @@ exposure/gain measured at tuning time; for production apply everything except
 ## Production: how the sets reach the sensors (W24-T22, build ≥ 1765)
 
 ```bash
-python3 make_regs.py --upload            # modules.json -> /cam/cam0.regs, /cam/cam1.regs on the board
-python3 make_regs.py --upload --awb manual   # keep the tuned AWB gains instead of auto AWB
+python3 make_regs.py --upload            # modules.json -> /cam/cam0.regs, /cam/cam1.regs on the board (103 regs each)
+python3 make_regs.py --upload --awb auto # drop the tuned AWB gains (sensor auto AWB) — measured much worse, see below
+bash measure_variants.sh v3              # re-measure the three variants on the Kamvas grid
 ```
 
 `make_regs.py` exports the **production** set of the module recorded on each connector as
-`ADDR VAL` hex lines, dropping the AEC/AGC freeze (auto exposure stays on) and, by default,
-the manual AWB block (0x3400–0x3406: the tuned gains describe the Kamvas white point, the
-field illuminant differs — gamma, CMX, SDE and LENC are what differs per module and they are
-kept).  The firmware applies `/cam/cam<N>.regs` at the end of every `camera.init()` for each
-detected connector (`sentai_cam_apply_regs_file`, group-hold batches, refused address classes
-for anything that would change the capture mode) and logs `E:0A13` / `E:0A14`;
-`sentai.camera.load_regs(cam[, path])` does the same on demand.  **When a module moves to
-the other connector or is replaced, update `modules.json` and re-run `make_regs.py --upload`.**
+`ADDR VAL` hex lines: the AEC/AGC freeze is dropped (auto exposure stays on), everything else
+of the tuned set is kept — gamma, CMX, SDE, LENC **and the manual AWB gains**.  The firmware
+applies `/cam/cam<N>.regs` at the end of every `camera.init()` for each detected connector
+(`sentai_cam_apply_regs_file`: the whole file is parsed and validated first, refused address
+classes for anything that would change the capture mode, then direct SCCB writes in file
+order) and logs `E:0A13` / `E:0A14`; `sentai.camera.load_regs(cam[, path])` does the same on
+demand.  **When a module moves to the other connector or is replaced, update `modules.json`
+and re-run `make_regs.py --upload`.**
+
+Measured on the Kamvas colour grid (grid mode, region 860,46,794,923, `measure_variants.sh`,
+build 1766, each variant applied by `camera.init()` after a reset; `out/measure_v2_*`):
+
+| variant | cam0 ΔE76 / ΔE00 (greys) | cam1 ΔE76 / ΔE00 (greys) | note |
+|---|---|---|---|
+| auto exposure + sensor auto AWB (`--awb auto`) | 33.5 / 17.9 (15.4) | 28.6 / 17.8 (21.3) | the OV5640 AWB loop fails on these modules (cam1 greys purple) |
+| **auto exposure + tuned AWB gains (default)** | **13.5 / 8.7 (6.0)** | **20.4 / 12.4 (10.5)** | equals the calibration |
+| frozen tuning exposure + tuned AWB (diagnostic) | 15.7 / 9.1 (7.4) | 21.9 / 13.9 (12.4) | = s265 grid-mode result (14.2–15.4 / 20.6–21.9 ΔE76) |
+
+Two lessons: (1) the first loader used OV5640 group-hold batches (0x3212) — every register
+read back correctly yet the same set measured ΔE76 21.8 / 35.7; direct writes give 15.2 /
+21.9, so the group write does not take every ISP register — the loader writes directly;
+(2) auto exposure does not hurt (slightly better than the frozen tuning exposure), the manual
+AWB gains are what carries the per-module correction.
 
 ## Schema of `modules.json`
 

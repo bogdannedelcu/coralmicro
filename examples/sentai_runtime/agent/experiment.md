@@ -161,7 +161,7 @@ on other OV5640 modules.  Folder `experiments/s265_camera_color_calibration/` (`
   SXGA15 / VGA30 all 1:1, genlock ok, sd <= 0.01 ms.
 - Production colour: make_regs.py exports /cam/camN.regs (96 regs, no exposure freeze, auto
   AWB), camera.init() applies them (group-hold batches, refused address classes, E:0A13),
-  camera.load_regs(); read-back 96/96 on both cameras.  Exposure vs fps checked: AEC cap is in
+  camera.load_regs(); read-back verified.  Variants measured on the Kamvas grid (build 1766): auto exposure + tuned AWB gains ΔE00 8.7 / 12.4 = calibration, sensor auto AWB 17.9 / 17.8 → default keeps the gains (103 regs); group-hold batches (first loader) read back fine but left part of the ISP set ineffective → direct writes.  Exposure vs fps checked: AEC cap is in
   lines (980/984 = full frame at every fps); only the 50/60 Hz band steps are VGA30-only.
 
 ### Open after this session

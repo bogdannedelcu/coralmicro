@@ -5311,17 +5311,17 @@ extern "C" int sentai_cam_apply_regs_file(int cam_id, const char* path) {
     while (*p && *p != '\n') ++p;   // ignore trailing comment
   }
   if (count == 0) return 0;
-  // Pass 2: group-hold batches.
+  // Pass 2: direct SCCB writes in file order.  Group-hold batches (0x3212
+  // 0x03 / 0x13 / 0xA3, 32 registers per group) were tried first: every
+  // register READ BACK correctly, yet the measured colour error of the same
+  // 109-register set was dE76 21.8 / 35.7 against 15.2 / 21.9 when the file
+  // was written directly (camera_modules/out/measure_prod_*; the OV5640 group
+  // write does not take every ISP register of this set).  The set is applied
+  // at init, before any consumer, so a frame carrying a half-applied set does
+  // not matter.
   auto* cam = coralmicro::CameraTask::GetSingleton();
-  const uint32_t frame_ms = cam_nominal_period_us() / 1000u + 5u;
-  for (int i = 0; i < count; i += 32) {
-    const int end = (i + 32 < count) ? i + 32 : count;
-    bool ok = cam->WriteToCam(cam_id, 0x3212, 0x03);
-    for (int k = i; k < end && ok; ++k) ok = cam->WriteToCam(cam_id, addrs[k], vals[k]);
-    ok = cam->WriteToCam(cam_id, 0x3212, 0x13) && ok;
-    ok = cam->WriteToCam(cam_id, 0x3212, 0xA3) && ok;
-    if (!ok) return -5;
-    vTaskDelay(pdMS_TO_TICKS(frame_ms));   // let the group launch before the next one
+  for (int k = 0; k < count; ++k) {
+    if (!cam->WriteToCam(cam_id, addrs[k], vals[k])) return -5;
   }
   return count;
 }

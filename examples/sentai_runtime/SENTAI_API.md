@@ -788,7 +788,9 @@ the firmware's): 0x3000–0x303F, 0x3212, 0x3800–0x383F, 0x3D00–0x3D21, 0x43
 0x4800–0x483F. Returns the number of registers written, 0 if the file is absent, -1 camera off,
 -2 bad args, -3 read error, -4 refused address, -5 SCCB write failed, -6 parse error.
 dmesg: `E:0A13:<cam<<16|count>` applied, `E:0A14:<cam<<16|abs(rc)>` failed. The files are
-generated from the module registry with `camera_modules/make_regs.py [--upload]`.
+generated from the module registry with `camera_modules/make_regs.py [--upload]` (default:
+auto exposure + the tuned manual AWB gains, 103 registers — measured ΔE00 8.7 / 12.4 on the
+Kamvas grid vs 17.9 / 17.8 with the sensor's own AWB).
 ```python
 >>> sentai.camera.load_regs(0)
 96

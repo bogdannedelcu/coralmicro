@@ -1,5 +1,12 @@
 # SAI-CAM-0001 on 58eb/cam0 — Kamvas 16 (sRGB mode) (2026-11-01), exported 2026-11-02 by make_regs.py
-# AEC/AGC freeze dropped (auto exposure); AWB auto (manual block dropped)
+# AEC/AGC freeze dropped (auto exposure); AWB manual gains kept
+3400 05
+3401 21
+3402 04
+3403 00
+3404 05
+3405 42
+3406 01
 5381 23
 5382 52
 5383 11
