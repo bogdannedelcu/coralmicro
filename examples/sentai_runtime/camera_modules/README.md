@@ -124,6 +124,26 @@ read back correctly yet the same set measured ΔE76 21.8 / 35.7; direct writes g
 (2) auto exposure does not hurt (slightly better than the frozen tuning exposure), the manual
 AWB gains are what carries the per-module correction.
 
+## Position test: board rotated 180° (2026-11-02, `measure_position.sh rot180`, build 1766)
+
+Same production set, board turned so the modules swap their place in front of the Kamvas
+(cam0 now sees the left part of the screen, cam1 the right; both see the whole grid, Gray-code
+residual ≈ 1 px, no misalignment).  Grid mode, common rect 584,27,784,936 vs 860,46,794,923 before.
+
+| | cam0 (SAI-CAM-0001) | cam1 (SAI-CAM-0002) |
+|---|---|---|
+| mean ΔE00 before → rotated | 8.7 → 9.5 (greys 6.0 → 5.6) | 12.4 → 10.0 (greys 10.5 → 6.5) |
+| within-patch colour gradient (mean std) | 4.1 → 4.6 | 5.6 → 4.9 |
+| patches that moved ≥ 7 ΔE00 | blue flower +9.7, blue +11.0, purplish blue −10.2, red −7.4, dark skin −6.8 | dark skin +11.3, bluish green +9.5, orange yellow −15.5, neutral 8 −12.6, yellow green −9.4, blue sky −8.9 |
+| stays bad on cam1 in both positions | — | magenta 21 → 22, moderate red 20 → 23 |
+
+Reading: most of the per-patch error on the Kamvas grid is **position-dependent** (panel
+viewing angle at a few cm: ±10–15 ΔE00 swings on both cameras when the geometry changes),
+which is why the s265 centre-mode method exists.  Averaged over the field the two modules are
+now close (9.5 vs 10.0); the module-specific residual of SAI-CAM-0002 shows up on saturated
+magenta / red regardless of position (RAW crosstalk).  Alignment check for future runs: both
+`visible_screen_rect`s must cover the grid and the locate residual stay ≈ 1 px.
+
 ## Schema of `modules.json`
 
 ```
