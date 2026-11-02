@@ -27,3 +27,5 @@ program: data → 0x3D20 = 0x01, poll bit 7; load/read: 0x3D21 = 0x01.  Planned 
 **How to apply:** when a module is calibrated, moved or replaced, update modules.json + README
 table and copy the register set into regs/; identify modules by connector + AWB fingerprint
 until the OTP is written.
+
+**Full register scan 2026-11-02 (`camera_modules/scan_regs.py`, 0x3000–0x60FF, 2 runs with a reset between):** NO factory identifier anywhere — every register that differs between the modules also changes between runs of the same module (AFC memory 0x6019–0x603F random per power-up, BLC black levels 0x402C–0x4033 / 0x40AC–0x40B3 drift, flicker detection 0x3C0C–0x3C18, undocumented 0x3051/52, 0x3A53=0x3AD3, 0x4617, 0x4763, 0x56A2). OTP read with reset released (0x3000[4]=0) + clock on + fast/slow: all zero. Weak analog fingerprint: SAI-CAM-0002 black level ≈ +40 LSB higher (1991–2009 vs 1953–1971), consistent with its purple stock frame. Do not re-investigate: identity = connector + AWB fingerprint.

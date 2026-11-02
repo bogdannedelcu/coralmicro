@@ -112,5 +112,40 @@
       },
       "notes": "Stock frame purple. RAW-domain G/B crosstalk not correctable in-sensor (OV5640 gamma precedes the CMX); gamma-off diagnostic: 3x3 matrix rms 13.4 -> 2.5. Yellow / moderate red render orange at the frame centre."
     }
-  ]
+  ],
+  "full_register_scan_2026-11-02": {
+    "range": "0x3000-0x60FF",
+    "runs": 2,
+    "result": "no factory identifier: all inter-module differences are volatile (AFC memory, BLC black level, flicker detection, undocumented); OTP all zero with reset released + clock on, fast and slow read",
+    "blc_black_level_0x402C_0x4033": {
+      "SAI-CAM-0001": [
+        [
+          1957,
+          1953,
+          1968,
+          1965
+        ],
+        [
+          1971,
+          1966,
+          1965,
+          1958
+        ]
+      ],
+      "SAI-CAM-0002": [
+        [
+          1997,
+          1991,
+          2000,
+          1997
+        ],
+        [
+          2009,
+          2005,
+          2000,
+          1996
+        ]
+      ]
+    }
+  }
 }

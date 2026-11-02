@@ -44,6 +44,29 @@ on (init table sets `0xFF`), write the data bytes to `0x3D05..`, set `0x3D20 = 0
 (program enable, fast), poll `0x3D20` bit 7 (busy) until clear, power-cycle, read back with
 `0x3D21 = 0x01` (load) and compare.
 
+## Full register scan — no factory identifier exists (2026-11-02, `scan_regs.py`)
+
+Both modules were scanned over the whole register space 0x3000–0x60FF (12 544 registers each,
+read on the board in the same state: fresh `init(1, 30)`, each camera selected and settled),
+twice, with a board reset in between (`scans/<ID>_2026-11-02.hex`, `_run2.hex`,
+`diff_*.json`).  The OTP was read with the OTP reset bit released (`0x3000[4] = 0`), the OTP
+clock on (`0x3004[4] = 1`) and both read speeds (`0x3D21 = 0x01 / 0x03`): **all 32 bytes are
+0x00 on both modules in every read**.  Chip ID `0x300A/B = 0x5640` on both.
+
+40 registers differed between the two modules in run 1, but every one of them also changed
+between run 1 and run 2 of the **same** module, so none is an identifier:
+
+- `0x6019–0x603F` (AFC / MCU block, no AF firmware loaded): uninitialised memory, random per
+  power-up.
+- `0x402C–0x4033`, `0x40AC–0x40B3`: BLC black-level results, drift with temperature.
+- `0x3C0C–0x3C18`: light-frequency detection results; `0x3051/0x3052`, `0x3A53` (= `0x3AD3`),
+  `0x4617`, `0x4763`, `0x569A–0x56A2`: undocumented, volatile.
+
+One real but weak analog fingerprint: the measured black level (`0x402C–0x4033`, four channels)
+is consistently higher on SAI-CAM-0002: 1953–1971 on module 1 vs 1991–2009 on module 2 in both
+runs (≈ +40 LSB, run-to-run drift ≈ 15), i.e. module 2 has more dark offset — consistent with
+its purple stock frame.  It drifts with temperature, so it is a sign, not an ID.
+
 ## How to identify a module without OTP
 
 1. Connector: bus 1 = cam0 (`CAM1` on the board), bus 2 = cam1 (`CAM2`).  Stable unless the
