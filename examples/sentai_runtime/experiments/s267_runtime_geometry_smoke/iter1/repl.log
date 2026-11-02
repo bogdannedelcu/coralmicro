@@ -1,0 +1,383 @@
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb
+>>> print(sentai.camera.init(1, 30))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE4 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 0 us after 0 step(s) (T=16718 us)
+0
+>>> print(sentai.camera.native_res())
+
+(640, 480)
+>>> print(sentai.camera.resolution())
+
+(640, 480)
+>>> print(len(sentai.camera.peek_col(40, 0)[2]))
+
+480
+>>> print((lambda c: max(c[len(c)//2:]) - min(c[len(c)//2:]))(sentai.camera.peek_col(40, 0)[2]))
+
+223
+>>> print(sentai.camera.save_jpeg("/s267.jpg"))
+
+  [capture_jpeg] drain=0ms pxp=10ms jpeg=80ms total=90ms (640x480)
+[save_jpeg] /s267.jpg: capture=90ms save=32ms total=122ms (39417 bytes, q=75)
+39417
+>>> print(sentai.camera.set_resolution(320, 240))
+
+0
+>>> print(sentai.camera.resolution())
+
+(320, 240)
+>>> print(sentai.camera.native_res())
+
+(640, 480)
+>>> print(sentai.camera.save_jpeg("/s267_small.jpg"))
+
+  [capture_jpeg] drain=52ms pxp=6ms jpeg=19ms total=77ms (320x240)
+[save_jpeg] /s267_small.jpg: capture=77ms save=13ms total=90ms (16625 bytes, q=75)
+16625
+>>> print(len(sentai.camera.peek_col(40, 0)[2]))
+
+480
+>>> print(sentai.camera.set_resolution(640, 480))
+
+0
+>>> print(sentai.camera.set_resolution(1280, 480))
+
+-1
+>>> print(sentai.camera.prep_enable(0))
+
+1
+>>> print(sentai.camera.prep_enable(1))
+
+1
+>>> print(sentai.camera.prep_stats()["slot_seq"][0])
+
+0
+>>> print(sentai.camera.prep_once())
+
+0
+>>> print(sentai.camera.prep_stats()["slot_seq"][0])
+
+1
+>>> print(sentai.camera.prep_disable(0))
+
+0
+>>> print(sentai.camera.prep_disable(1))
+
+0
+>>> print(sentai.flow.start(0))
+
+0
+>>> print(sentai.flow.pub_stats())
+
+{'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': True, 'frames': 44}
+>>> print(sentai.flow.read())
+
+{'dy': 0, 'dx': 0, 'alive': True, 'state': 1, 'sad': 0, 'confidence': 255, 'frame_seq': 45, 'cam_id': 0}
+>>> print(sentai.flow.stop())
+
+0
+>>> print(sentai.camera.peek5_b40())
+
+(0, 0, 208, 16, 31, 15)
+>>> print(sentai.camera.peek5_tags())
+
+(1, 0, 0, 255, 0, 207, 16, 16, 15)
+>>> print(sentai.camera.yuv420_test("/s267_y.bin", "/s267_uv.bin"))
+
+0
+>>> print(sentai.rtos.dmesg(4000))
+
+[         0] I E:0F01:1
+[      3187] I E:0A06:3
+[      3813] I E:0500:30
+[      4534] I E:0A12:12
+[      6612] I E:0A0C:0
+[      8813] I E:0E31:2
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb
+>>> print(sentai.camera.set_hw(1280, 960))
+
+0
+>>> print(sentai.camera.init(1, 15))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=15 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xDE (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 6 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 7 us after 0 step(s) (T=16718 us)
+0
+>>> print(sentai.camera.native_res())
+
+(1280, 960)
+>>> print(sentai.camera.resolution())
+
+(1280, 960)
+>>> print(len(sentai.camera.peek_col(40, 0)[2]))
+
+960
+>>> print((lambda c: max(c[len(c)//2:]) - min(c[len(c)//2:]))(sentai.camera.peek_col(40, 0)[2]))
+
+144
+>>> print(sentai.camera.save_jpeg("/s267.jpg"))
+
+  [capture_jpeg] drain=26ms pxp=26ms jpeg=83ms total=135ms (640x480)
+[save_jpeg] /s267.jpg: capture=135ms save=11ms total=146ms (40706 bytes, q=75)
+40706
+>>> print(sentai.camera.set_resolution(320, 240))
+
+0
+>>> print(sentai.camera.resolution())
+
+(320, 240)
+>>> print(sentai.camera.native_res())
+
+(1280, 960)
+>>> print(sentai.camera.save_jpeg("/s267_small.jpg"))
+
+  [capture_jpeg] drain=7ms pxp=11ms jpeg=21ms total=39ms (320x240)
+[save_jpeg] /s267_small.jpg: capture=39ms save=20ms total=59ms (17409 bytes, q=75)
+17409
+>>> print(len(sentai.camera.peek_col(40, 0)[2]))
+
+960
+>>> print(sentai.camera.set_resolution(1280, 960))
+
+0
+>>> print(sentai.camera.set_resolution(2560, 960))
+
+-1
+>>> print(sentai.camera.prep_enable(0))
+
+1
+>>> print(sentai.camera.prep_enable(1))
+
+1
+>>> print(sentai.camera.prep_stats()["slot_seq"][0])
+
+0
+>>> print(sentai.camera.prep_once())
+
+0
+>>> print(sentai.camera.prep_stats()["slot_seq"][0])
+
+1
+>>> print(sentai.camera.prep_disable(0))
+
+0
+>>> print(sentai.camera.prep_disable(1))
+
+0
+>>> print(sentai.flow.start(0))
+
+0
+>>> print(sentai.flow.pub_stats())
+
+{'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': True, 'frames': 24}
+>>> print(sentai.flow.read())
+
+{'dy': 0, 'dx': 0, 'alive': True, 'state': 1, 'sad': 0, 'confidence': 255, 'frame_seq': 24, 'cam_id': 0}
+>>> print(sentai.flow.stop())
+
+0
+>>> print(sentai.camera.peek5_b40())
+
+(1, 63, 143, 0, 15, 0)
+>>> print(sentai.camera.peek5_tags())
+
+(0, 1, 1, 255, 63, 143, 0, 15, 0)
+>>> print(sentai.camera.yuv420_test("/s267_y.bin", "/s267_uv.bin"))
+
+-5
+>>> print(sentai.rtos.dmesg(4000))
+
+[         0] I E:0F01:1
+[      3467] I E:0A06:3
+[      4020] I E:0500:30
+[      4887] I E:0A12:6
+[      8403] I E:0A0C:7
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb
+>>> print(sentai.camera.set_hw(1280, 960))
+
+0
+>>> print(sentai.camera.packed420(1))
+
+1
+>>> print(sentai.camera.init(1, 30))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=028003C0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[CAM0] W 0x460C=0x22 (0)
+[CAM0] W 0x3824=0x01 (0)
+[cam] packed420 capture: sensor format 0x5F + PCLK div manual/1 -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE4 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate
+[cam] genlock step 0: phase 384 us -> cam0 VTS 984+23 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEF (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase 384 us -> cam0 VTS 984+23 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEF (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase 383 us -> cam0 VTS 984+23 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEF (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock FAILED: residual phase 384 us
+0
+>>> print(sentai.camera.native_res())
+
+(1280, 960)
+>>> print(sentai.camera.resolution())
+
+(1280, 960)
+>>> print(len(sentai.camera.peek_col(40, 1)[2]))
+
+960
+>>> print((lambda c: max(c[len(c)//2:]) - min(c[len(c)//2:]))(sentai.camera.peek_col(40, 1)[2]))
+
+156
+>>> sentai.camera.save_jpeg("/s267.jpg")
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: cam capture fail
+>>> print(sentai.camera.set_resolution(320, 240))
+
+0
+>>> print(sentai.camera.resolution())
+
+(320, 240)
+>>> print(sentai.camera.native_res())
+
+(1280, 960)
+>>> print(len(sentai.camera.peek_col(40, 1)[2]))
+
+960
+>>> print(sentai.camera.set_resolution(1280, 960))
+
+0
+>>> print(sentai.camera.set_resolution(2560, 960))
+
+-1
+>>> print(sentai.camera.prep_enable(0))
+
+1
+>>> print(sentai.camera.prep_enable(1))
+
+1
+>>> print(sentai.camera.prep_stats()["slot_seq"][0])
+
+0
+>>> print(sentai.camera.prep_once())
+
+0
+>>> print(sentai.camera.prep_stats()["slot_seq"][0])
+
+0
+>>> print(sentai.camera.prep_disable(0))
+
+0
+>>> print(sentai.camera.prep_disable(1))
+
+0
+>>> sentai.flow.start(0)
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: flow.start failed (-4)
+>>> print(sentai.camera.peek5_b40())
+
+(0, 5, 173, 19, 13, 7)
+>>> print(sentai.camera.peek5_tags())
+
+(1, 0, 0, 255, 5, 178, 22, 15, 7)
+>>> print(sentai.camera.yuv420_test("/s267_y.bin", "/s267_uv.bin"))
+
+-5
+>>> print(sentai.rtos.dmesg(4000))
+
+[         0] I E:0F01:1
+[      3494] I E:0A06:3
+[      4022] I E:0500:30
+[      4907] I E:0A12:12
+[      7035] I E:0A00:0
+[      7212] I E:0A00:0
+[      9022] I E:0A00:0
+[      9022] I E:0A00:0
+[      9022] I E:0A00:0
+[      9022] I E:0A00:0
+[      9022] I E:0A0D:40
+[     14022] I E:0448:2
+[     14022] I E:0E21:1

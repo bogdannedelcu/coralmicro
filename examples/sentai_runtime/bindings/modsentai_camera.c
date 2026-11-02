@@ -21,8 +21,10 @@ extern int sentai_cam_stop(void);
 extern int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
                                    int width, int height, int quality);
 extern int sentai_cam_to_tensor_ex(const char* save_path, int quality);
-extern int sentai_cam_get_width(void);
+extern int sentai_cam_get_width(void);        // SOURCE geometry of the frame buffers (W24-T20)
 extern int sentai_cam_get_height(void);
+extern int sentai_cam_get_out_width(void);    // set_resolution() output size (jpeg / save_jpeg)
+extern int sentai_cam_get_out_height(void);
 extern int sentai_cam_set_res(int w, int h);
 extern int sentai_cam_get_native_width(void);
 extern int sentai_cam_get_native_height(void);
@@ -85,8 +87,8 @@ extern int sentai_cam_capture_jpeg_yuv(uint8_t* jpeg_buf, int jpeg_buf_size, int
 static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     int quality = (n_args > 0) ? mp_obj_get_int(args[0]) : 75;
     int yuv = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
-    int w = sentai_cam_get_width();
-    int h = sentai_cam_get_height();
+    int w = sentai_cam_get_out_width();
+    int h = sentai_cam_get_out_height();
     // SXGA frames are encoded at half size: the RGB staging buffer and the MicroPython
     // heap are sized for 640x480 (EXP-s266; before this every SXGA capture failed)
     while ((size_t)w * (size_t)h > 640u * 480u) { w /= 2; h /= 2; }
@@ -131,8 +133,8 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(args[0]);
     int quality = (n_args > 1) ? mp_obj_get_int(args[1]) : 75;
-    int w = sentai_cam_get_width();
-    int h = sentai_cam_get_height();
+    int w = sentai_cam_get_out_width();
+    int h = sentai_cam_get_out_height();
     while ((size_t)w * (size_t)h > 640u * 480u) { w /= 2; h /= 2; }   // SXGA -> VGA JPEG
     int max_jpeg = w * h;
     uint8_t* buf = (uint8_t*)malloc(max_jpeg);
@@ -183,11 +185,12 @@ static mp_obj_t mod_sentai_cam_save_raw(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_save_raw_obj, 1, 3, mod_sentai_cam_save_raw);
 
-// sentai.camera.resolution() -> tuple (width, height) - current capture resolution
+// sentai.camera.resolution() -> tuple (width, height) - capture OUTPUT size
+// (set_resolution()); the frame-buffer geometry is native_res().
 static mp_obj_t mod_sentai_cam_resolution(void) {
     mp_obj_t items[2];
-    items[0] = mp_obj_new_int(sentai_cam_get_width());
-    items[1] = mp_obj_new_int(sentai_cam_get_height());
+    items[0] = mp_obj_new_int(sentai_cam_get_out_width());
+    items[1] = mp_obj_new_int(sentai_cam_get_out_height());
     return mp_obj_new_tuple(2, items);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_resolution_obj, mod_sentai_cam_resolution);
@@ -1094,10 +1097,13 @@ int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
     // Fallback: pipeline not running OR slot not enabled.  On-demand
     // PXP into local scratch.  Cold-path for diag scripts running
     // outside of any pipeline session.
+    // W24-T20: packed YUV420 frames are not XRGB; the PXP Y8 pass would
+    // return a garbage grey image with rc 0.  Refuse (aruco/whycon report -1).
+    if (sentai_cam_get_packed420()) return -1;
     uint8_t* xrgb = NULL;
     int idx = sentai_cam_grab_latest(&xrgb);
     if (idx < 0 || !xrgb) return -1;
-    const int W = sentai_cam_get_width();
+    const int W = sentai_cam_get_width();     // SOURCE geometry (runtime)
     const int H = sentai_cam_get_height();
     if (W <= 0 || H <= 0) {
         sentai_cam_return_raw(idx);

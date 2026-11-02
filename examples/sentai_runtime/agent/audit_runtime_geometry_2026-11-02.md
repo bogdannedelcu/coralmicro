@@ -1,9 +1,10 @@
 # Audit — compile-time VGA geometry in runtime-geometry code paths (2026-11-02)
 
-**WBS**: OP-S10-W24-T20 (fixes), triggered by EXP-s266 (W24-T19).  **Status**: findings
-recorded, fixes NOT applied yet (next session).  Produced by the `embeded-reviewer` agent,
-read-only, after two bugs of this class were found by hand (`sentai_cam_capture_jpeg` and
-`sentai_cam_peek_col`, fixed in builds 1757–1760).
+**WBS**: OP-S10-W24-T20 (fixes), triggered by EXP-s266 (W24-T19).  **Status**: all class-A
+findings fixed in builds 1762–1763 (2026-11-02, see "Fixes applied" at the end; smoke test
+EXP-s267).  Produced by the `embeded-reviewer` agent, read-only, after two bugs of this class
+were found by hand (`sentai_cam_capture_jpeg` and `sentai_cam_peek_col`, fixed in builds
+1757–1760).
 
 Since OP-S10-W24-T11 the camera geometry is a runtime property: `g_runtime_cam_w/h` (640x480 or
 1280x960, `camera.set_hw()` before `init()`) and `g_sentai_cam_packed420` (CSI stores
@@ -81,3 +82,32 @@ Key facts established by the audit:
 Plan (W24-T20): fix 1 → 2 → 3/4 → 5/6 → 7/8/9 in one build, each with a REPL check at SXGA
 legacy and SXGA packed (s266 `run_sxga.sh` + `camera.prep_once()` + `flow.start()` smoke), then
 re-run the s266 SXGA cadence with `frame_log(64)`.
+
+## Fixes applied (W24-T20, builds 1762–1763, 2026-11-02)
+
+One source of truth in `sentai_runtime.cc` (top of file): `cam_src_w/h()` (virtual camera or
+`g_runtime_cam_w/h`), `cam_src_packed()`, `cam_src_pitch()` (`(w/2)*4` packed, `w*4` otherwise).
+`sentai_cam_get_width/height()` now return this SOURCE geometry; the `set_resolution()` output
+size moved to `sentai_cam_get_out_width/height()` (used only by `jpeg()`, `save_jpeg()`,
+`resolution()`).
+
+| # | finding | fix |
+|---|---|---|
+| 1 | D-cache invalidate / clean VGA-sized (camera.cc) | `LiveFrameBytes()` = `g_runtime_cam_h * (g_runtime_cam_w / g_sentai_csi_wdiv) * 4`, clamped to the CAM_MAX slot; used by both maintenance calls |
+| 2 | aux prep slots with VGA pitch | runtime `cam_src_w/h()`; in packed mode the producers are skipped and `SERR_DET_CAM_FORMAT` (0x0448, val 2) logged once; `grab_gray_zerocopy` fallback refuses packed (-1) |
+| 3 | RGB single-input model path | runtime geometry for the PXP; `pipeline.start` refuses packed + RGB model with -9 / 0x0448 val 1; in-loop guard rc -23 |
+| 4 | standalone flow publisher | runtime geometry (`flow_cam_src_w/h()`, SIM keeps VGA); `flow.start(0/1)` refused with -4 / `SERR_FLOW_CAM_FORMAT` (0x0E21) in packed mode |
+| 5 | `capture_rgb`, `to_tensor_ex`, `aifes_capture_camera` | runtime geometry, -7 when packed, -5 when the output exceeds the source |
+| 6 | `capture_jpeg_yuv` | -7 packed, -5 when the sensor geometry is not 640x480 (planes are VGA) |
+| 7 | `peek5_b40` / `peek5_tags`, `yuv420_extract_test` | runtime rows + pitch; the YUV test returns -5 / -7 outside VGA legacy and now returns the grabbed frame |
+| 8 | `native_res()` | `cam_src_w/h()` |
+| 9 | `set_resolution()` as source pitch | output-only (see above); `CamDumpRegisters` print runtime dims |
+
+Build gotchas: the cm4 TU of `camera.cc` has no `CAM_MAX_*` (fallback literals); the
+`"NonCacheableCamera,\"aw\",%nobits @"` section trick on `s_tpu_input_buf_sxga` broke the SIM
+compile of `detection_task.cc` since W24-T11 (guarded).  The SIM link itself is still broken by
+other W24 ARM-only symbols (TPU URB stats, chase, pack420_drop, sysfs, imu, health, and the
+camera geometry symbols) — tracked as OP-S10-W24-T21, not part of this fix.
+
+Verification: EXP-s267 `smoke.py` (VGA30 legacy, SXGA15 legacy, SXGA30 packed; results in its
+README) and the s266 SXGA time-code re-run for the cache fix (#1).

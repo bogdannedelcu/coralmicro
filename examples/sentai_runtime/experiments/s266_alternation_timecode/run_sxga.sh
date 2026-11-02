@@ -34,5 +34,7 @@ sleep 4
 python3 run_timecode.py --out "$1" --seconds 30 --exp-lines "$2" --gain "$3" --byte "$4" --locate iter4_sxga15/locate.json 2>&1 | grep -vE '^$|RuntimeWarning|_methods|fromnumeric|bands \(rows'
 python3 timecode_display.py --quit 2>/dev/null
 }
-echo "===== SXGA 15 legacy ====="; init_board 15 0; run_tc iter4_sxga15 50 160 0
-echo "===== SXGA 30 packed (byte 1 = Y1) ====="; init_board 30 1; run_tc iter5_sxga30 100 160 1
+# usage: bash run_sxga.sh [out_dir_sxga15] [out_dir_sxga30p]   (defaults = the build-1760 iterations)
+OUT15=${1:-iter4_sxga15}; OUT30=${2:-iter5_sxga30}
+echo "===== SXGA 15 legacy ====="; init_board 15 0; run_tc "$OUT15" 50 160 0
+echo "===== SXGA 30 packed (byte 1 = Y1) ====="; init_board 30 1; run_tc "$OUT30" 100 160 1

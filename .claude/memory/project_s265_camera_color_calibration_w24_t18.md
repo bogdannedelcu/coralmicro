@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T21:29:15.442Z
+  modified: 2026-11-02T04:38:27.528Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -98,11 +98,22 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   keeps up with every other 2.5 MB frame → use `camera.frame_log(64)` for cadence; cam1 packed codes
   garbage (open). Exposure per mode: lines scale with line time (VGA45 150 lines ≈ 3.4 ms, VGA60 200,
   SXGA15 50, SXGA30 100).
-- **W24-T20 TODO (audit 2026-11-02, `agent/audit_runtime_geometry_2026-11-02.md`):** 9 more places use
-  compile-time VGA constants as SOURCE geometry at SXGA/packed. #1 = D-cache invalidate/clean in
-  libs/camera/camera.cc sized 640x480x4 (m_ncamera is write-back cacheable: MPU region 9 = all SDRAM) →
-  rows ≥ 240 of an SXGA frame can be stale for every CPU reader (incl. the fixed peek_col). Then aux
-  slots (markers/places/flow), RGB model prep, flow publisher, capture_rgb/to_tensor/aifes, jpeg_yuv,
-  peek5_*, yuv420_extract_test, native_res(), set_resolution() as source pitch. Fix next session.
+- **W24-T20 DONE (2026-11-02, builds 1762–1763, EXP-s267 smoke PASS in VGA30 / SXGA15 / SXGA30 packed):**
+  all 9 audit findings fixed. Rules now in force: readers of raw frames use `cam_src_w/h()` /
+  `cam_src_pitch()` / `cam_src_packed()` (sentai_runtime.cc top); `sentai_cam_get_width/height()` =
+  SOURCE geometry, `set_resolution()` is output-only via `sentai_cam_get_out_width/height()`; D-cache
+  maintenance in camera.cc = `LiveFrameBytes()`; packed YUV420 refused by jpeg (-7), flow.start (-4,
+  SERR 0x0E21), RGB-model pipeline.start (-9, SERR 0x0448), aux slots skipped (0x0448 val 2),
+  zero-copy grey -1. Smoke-test gotchas: `Repl.value()` returns only the LAST line (use `cmd()` for
+  dmesg), `packed420(1)` returns 1, `flow.start` raises on error, prep producers fire only with a
+  slot enabled (`prep_enable(0)`), dark monitor → peek_col all zeros.
+- **SIM link is broken at HEAD (pre-existing, OP-S10-W24-T21 TODO):** ~26 ARM-only W24 symbols
+  (cam geometry, pack420_drop, chase, TPU URB stats, sysfs, imu, health); the `"%nobits @"`
+  section trick must be guarded for SIM (GAS x86 rejects it).
+- **s266 SXGA30 packed finding (iter7, 1763):** `ratio(1,1)` alternates 2:2 (FB-done ring tags
+  1001…, two entries per `seq` → the alternation counter advances once per two frames in this mode,
+  "frame_count half rate" family) and the two sensors are ~17 ms out of phase (33.4/16.4/33.4/50.6 ms);
+  `stats()["period_us"]`=16713 there is the 60 Hz grid, not the sensor period. Ring was read with no
+  consumer → re-check with the pipeline running. cam0 SXGA column 40 ambiguity is geometry, not cache.
 - Open: production integration (register set per camera after init, group write 0x3212), the linear
   pipeline option above, print target under one steady illuminant, s266 soak / VGA45 / select().

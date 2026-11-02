@@ -1,0 +1,288 @@
+[
+ {
+  "mode": "vga30",
+  "checks": {
+   "init": {
+    "ok": true,
+    "detail": "init(1, 30) -> 0"
+   },
+   "native_res": {
+    "ok": true,
+    "detail": "(640, 480)"
+   },
+   "resolution_default": {
+    "ok": true,
+    "detail": "(640, 480)"
+   },
+   "peek_col_rows": {
+    "ok": true,
+    "detail": "rows 480 (byte 0)"
+   },
+   "peek_col_bottom_live": {
+    "ok": true,
+    "detail": "max-min of rows >= h/2 = 223"
+   },
+   "save_jpeg": {
+    "ok": true,
+    "detail": "bytes 39417"
+   },
+   "set_resolution_320": {
+    "ok": true,
+    "detail": "set_resolution(320,240)"
+   },
+   "resolution_after": {
+    "ok": true,
+    "detail": "(320, 240)"
+   },
+   "native_res_unchanged": {
+    "ok": true,
+    "detail": "(640, 480)"
+   },
+   "save_jpeg_320": {
+    "ok": true,
+    "detail": "bytes 16625"
+   },
+   "peek_col_rows_after_set_res": {
+    "ok": true,
+    "detail": "rows 480"
+   },
+   "set_resolution_restore": {
+    "ok": true,
+    "detail": "back to sensor size"
+   },
+   "set_resolution_too_big": {
+    "ok": true,
+    "detail": "w*2 refused"
+   },
+   "prep_once": {
+    "ok": true,
+    "detail": "prep_once -> 0"
+   },
+   "prep_slots_advance": {
+    "ok": true,
+    "detail": "GRAY_NATIVE seq 0 -> 1"
+   },
+   "flow_start": {
+    "ok": true,
+    "detail": "flow.start(0) -> 0"
+   },
+   "flow_publishes": {
+    "ok": true,
+    "detail": "{'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': True, 'frames': 44}"
+   },
+   "peek5_b40": {
+    "ok": true,
+    "detail": "(0, 0, 208, 16, 31, 15)"
+   },
+   "peek5_tags": {
+    "ok": true,
+    "detail": "(1, 0, 0, 255, 0, 207, 16, 16, 15)"
+   },
+   "yuv420_test_vga": {
+    "ok": true,
+    "detail": "yuv420_test -> 0"
+   },
+   "no_cam_format_serr": {
+    "ok": true,
+    "detail": "no 0x0448 / 0x0E21"
+   }
+  },
+  "version": "SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb",
+  "flow_read": "{'dy': 0, 'dx': 0, 'alive': True, 'state': 1, 'sad': 0, 'confidence': 255, 'frame_seq': 45, 'cam_id': 0}",
+  "dmesg_tail": "[      8813] I E:0E31:2",
+  "pass": true
+ },
+ {
+  "mode": "sxga15",
+  "checks": {
+   "set_hw": {
+    "ok": true,
+    "detail": "set_hw(1280,960)"
+   },
+   "init": {
+    "ok": true,
+    "detail": "init(1, 15) -> 0"
+   },
+   "native_res": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "resolution_default": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "peek_col_rows": {
+    "ok": true,
+    "detail": "rows 960 (byte 0)"
+   },
+   "peek_col_bottom_live": {
+    "ok": true,
+    "detail": "max-min of rows >= h/2 = 144"
+   },
+   "save_jpeg": {
+    "ok": true,
+    "detail": "bytes 40706"
+   },
+   "set_resolution_320": {
+    "ok": true,
+    "detail": "set_resolution(320,240)"
+   },
+   "resolution_after": {
+    "ok": true,
+    "detail": "(320, 240)"
+   },
+   "native_res_unchanged": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "save_jpeg_320": {
+    "ok": true,
+    "detail": "bytes 17409"
+   },
+   "peek_col_rows_after_set_res": {
+    "ok": true,
+    "detail": "rows 960"
+   },
+   "set_resolution_restore": {
+    "ok": true,
+    "detail": "back to sensor size"
+   },
+   "set_resolution_too_big": {
+    "ok": true,
+    "detail": "w*2 refused"
+   },
+   "prep_once": {
+    "ok": true,
+    "detail": "prep_once -> 0"
+   },
+   "prep_slots_advance": {
+    "ok": true,
+    "detail": "GRAY_NATIVE seq 0 -> 1"
+   },
+   "flow_start": {
+    "ok": true,
+    "detail": "flow.start(0) -> 0"
+   },
+   "flow_publishes": {
+    "ok": true,
+    "detail": "{'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': True, 'frames': 24}"
+   },
+   "peek5_b40": {
+    "ok": true,
+    "detail": "(1, 63, 143, 0, 15, 0)"
+   },
+   "peek5_tags": {
+    "ok": true,
+    "detail": "(0, 1, 1, 255, 63, 143, 0, 15, 0)"
+   },
+   "yuv420_test_refused": {
+    "ok": true,
+    "detail": "yuv420_test -> -5"
+   },
+   "no_cam_format_serr": {
+    "ok": true,
+    "detail": "no 0x0448 / 0x0E21"
+   }
+  },
+  "version": "SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb",
+  "flow_read": "{'dy': 0, 'dx': 0, 'alive': True, 'state': 1, 'sad': 0, 'confidence': 255, 'frame_seq': 24, 'cam_id': 0}",
+  "dmesg_tail": "[      8403] I E:0A0C:7",
+  "pass": true
+ },
+ {
+  "mode": "sxga30p",
+  "checks": {
+   "set_hw": {
+    "ok": true,
+    "detail": "set_hw(1280,960)"
+   },
+   "packed420": {
+    "ok": true,
+    "detail": "packed420(1) -> 1 (returns the mode)"
+   },
+   "init": {
+    "ok": true,
+    "detail": "init(1, 30) -> 0"
+   },
+   "native_res": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "resolution_default": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "peek_col_rows": {
+    "ok": true,
+    "detail": "rows 960 (byte 1)"
+   },
+   "peek_col_bottom_live": {
+    "ok": true,
+    "detail": "max-min of rows >= h/2 = 156"
+   },
+   "save_jpeg_refused_packed": {
+    "ok": true,
+    "detail": "RuntimeError: cam capture fail"
+   },
+   "set_resolution_320": {
+    "ok": true,
+    "detail": "set_resolution(320,240)"
+   },
+   "resolution_after": {
+    "ok": true,
+    "detail": "(320, 240)"
+   },
+   "native_res_unchanged": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "peek_col_rows_after_set_res": {
+    "ok": true,
+    "detail": "rows 960"
+   },
+   "set_resolution_restore": {
+    "ok": true,
+    "detail": "back to sensor size"
+   },
+   "set_resolution_too_big": {
+    "ok": true,
+    "detail": "w*2 refused"
+   },
+   "prep_once": {
+    "ok": true,
+    "detail": "prep_once -> 0"
+   },
+   "prep_slots_skipped_packed": {
+    "ok": true,
+    "detail": "GRAY_NATIVE seq 0 -> 0"
+   },
+   "flow_start_refused_packed": {
+    "ok": true,
+    "detail": "RuntimeError: flow.start failed (-4)"
+   },
+   "peek5_b40": {
+    "ok": true,
+    "detail": "(0, 5, 173, 19, 13, 7)"
+   },
+   "peek5_tags": {
+    "ok": true,
+    "detail": "(1, 0, 0, 255, 5, 178, 22, 15, 7)"
+   },
+   "yuv420_test_refused": {
+    "ok": true,
+    "detail": "yuv420_test -> -5"
+   },
+   "serr_det_cam_format_logged": {
+    "ok": false,
+    "detail": "SERR 0x0448 (prep producers skipped) absent"
+   },
+   "serr_flow_cam_format_logged": {
+    "ok": true,
+    "detail": "SERR 0x0E21 present"
+   }
+  },
+  "version": "SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb",
+  "dmesg_tail": "[     14022] I E:0E21:1",
+  "pass": false
+ }
+]

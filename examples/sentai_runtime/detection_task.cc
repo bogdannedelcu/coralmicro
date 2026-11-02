@@ -197,15 +197,25 @@ static uint8_t* const s_tpu_input_buf[2] = {
 // overlaps the 67 ms invoke of the current one (first SXGA run, build 1712:
 // one buffer serialised them -> 9.5 fps with the camera at 15 fps).
 static constexpr int kSxgaYuvStagingSize = 1280 * 960 * 3 / 2;  // 1 843 200 B
-static uint8_t s_tpu_input_buf_sxga[2][kSxgaYuvStagingSize]
-    __attribute__((aligned(64), section("NonCacheableCamera,\"aw\",%nobits @")));
+#if defined(SENTAI_PLATFORM_SIM)
+#define SENTAI_SXGA_STAGING_BSS __attribute__((aligned(64)))   // GAS on x86 rejects the "%nobits @" trick
+#else
+#define SENTAI_SXGA_STAGING_BSS \
+    __attribute__((aligned(64), section("NonCacheableCamera,\"aw\",%nobits @")))
+#endif
+static uint8_t s_tpu_input_buf_sxga[2][kSxgaYuvStagingSize] SENTAI_SXGA_STAGING_BSS;
 extern "C" int sentai_cam_get_width(void);
 extern "C" int sentai_cam_get_height(void);
 extern "C" int sentai_get_input_bytes(int idx);
-// Runtime camera frame geometry for the YUV420 dual-input path (the RGB
-// path still uses the compile-time VGA constants for the PXP scaler).
+// Runtime SOURCE geometry of the camera frame buffers (640x480 or 1280x960).
+// W24-T20: sentai_cam_get_width/height() return the sensor geometry (never the
+// set_resolution() output size any more) and every PXP source argument in
+// this file comes from here -- the compile-time VGA constants described a
+// 2560-byte pitch for a 5120-byte SXGA row (interleaved half-row images, rc 0).
 static inline int yuv_cam_w(void) { return sentai_cam_get_width(); }
 static inline int yuv_cam_h(void) { return sentai_cam_get_height(); }
+static inline int cam_src_w(void) { return sentai_cam_get_width(); }
+static inline int cam_src_h(void) { return sentai_cam_get_height(); }
 static inline int yuv_y_bytes(void) { return yuv_cam_w() * yuv_cam_h(); }
 static inline int yuv_total_bytes(void) {
     return yuv_y_bytes() + (yuv_cam_w() / 2) * (yuv_cam_h() / 2) * 2;
@@ -805,20 +815,29 @@ static volatile bool s_prep_only_mode = false;
 
 static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
     const uint32_t fire_mask = sentai_prep_tick_frame();
+    // W24-T20: source geometry at runtime; packed YUV420 frames are not XRGB,
+    // so the producers would publish garbage with rc 0 -- skip them and say so
+    // once (the slots keep their previous content and sequence).
+    const int cw = cam_src_w(), chh = cam_src_h();
+    if (g_sentai_cam_packed420) {
+        static bool s_packed_reported = false;
+        if (fire_mask && !s_packed_reported) {
+            s_packed_reported = true;
+            SERR_LOG(SERR_DET_CAM_FORMAT, 2);
+        }
+        return fire_mask;
+    }
     if (fire_mask & (1u << SENTAI_PREP_SLOT_GRAY_NATIVE)) {
         int sw = 0, sh = 0;
         uint8_t* sbuf = sentai_prep_slot_begin_write(
             SENTAI_PREP_SLOT_GRAY_NATIVE, &sw, &sh);
         if (sbuf) {
-            sentai_pxp_xrgb_to_y8(raw, DEMO_CAMERA_WIDTH,
-                                  DEMO_CAMERA_HEIGHT,
-                                  sbuf, sw, sh);
+            sentai_pxp_xrgb_to_y8(raw, cw, chh, sbuf, sw, sh);
             sentai_prep_slot_commit(SENTAI_PREP_SLOT_GRAY_NATIVE);
         }
     }
     if (fire_mask & (1u << SENTAI_PREP_SLOT_RGB_64)) {
-        sentai_prep_publish_slot_rgb_64(raw, DEMO_CAMERA_WIDTH,
-                                        DEMO_CAMERA_HEIGHT);
+        sentai_prep_publish_slot_rgb_64(raw, cw, chh);
     }
     if (fire_mask & (1u << SENTAI_PREP_SLOT_FLOW_GRAY_80x60)) {
         int sw = 0, sh = 0;
@@ -834,8 +853,7 @@ static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
             // at the same 8:1 is fine, cf. sentai_flow_publish_frame).
             static uint8_t s_flow_rgb_scratch[80 * 60 * 3]
                 __attribute__((aligned(8), section(".sdram_bss")));
-            if (sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
-                                 s_flow_rgb_scratch, sw, sh) == 0) {
+            if (sentai_pxp_scale(raw, cw, chh, s_flow_rgb_scratch, sw, sh) == 0) {
                 const uint8_t* p = s_flow_rgb_scratch;
                 const int n = sw * sh;
                 for (int i = 0; i < n; ++i) {
@@ -932,11 +950,10 @@ static void prep_task_fn(void* /*param*/) {
             s_prep_stage_cam_grab_ms += (uint32_t)(t_cam_end - t_cam_start);
             s_prep_stage_total_ms +=
                 (uint32_t)(xTaskGetTickCount() - t_iter_start);
-            s_stg_w = DEMO_CAMERA_WIDTH;
-            s_stg_h = DEMO_CAMERA_HEIGHT;
+            s_stg_w = cam_src_w();          // runtime geometry (W24-T20)
+            s_stg_h = cam_src_h();
             s_stg_ch = used_rgb_fast_path ? 3 : 4;
-            s_stg_total = DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT *
-                          (used_rgb_fast_path ? 3 : 4);
+            s_stg_total = s_stg_w * s_stg_h * s_stg_ch;
             s_stg_frame_seq = used_rgb_fast_path ? rgb_seq :
                               sentai_cam_get_frame_seq();
             s_stg_cam_id = prep_cam_id;
@@ -1161,8 +1178,7 @@ static void prep_task_fn(void* /*param*/) {
         // and zero the tensor destination.  Tests if camera traffic alone
         // (CSI DMA into SDRAM) wedges the TPU.
         if (prep_mode == 2) {
-            sentai_flow_m4_publish_frame(raw, DEMO_CAMERA_WIDTH,
-                                         DEMO_CAMERA_HEIGHT,
+            sentai_flow_m4_publish_frame(raw, cam_src_w(), cam_src_h(),
                                          sentai_cam_current_id());
             sentai_cam_return_raw(idx);
             memset(dst_buf, 0, total);
@@ -1267,9 +1283,14 @@ static void prep_task_fn(void* /*param*/) {
                 rc = sentai_pxp_xyuv_to_yuv420(raw, cw, chh, dst_buf, dst_buf + Y_SIZE);
             }
             pipe_trace(5, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
+        } else if (g_sentai_cam_packed420) {
+            // Refused at start(); kept as a belt-and-braces guard so a packed
+            // frame can never be scaled as XRGB into the tensor (W24-T20).
+            rc = -23;
         } else {
-            rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
-                                  dst_buf, w, h);
+            // Single-input RGB model: PXP XRGB -> RGB888 scale from the RUNTIME
+            // source geometry (W24-T20; the VGA constants gave garbage at SXGA).
+            rc = sentai_pxp_scale(raw, cam_src_w(), cam_src_h(), dst_buf, w, h);
         }
         TickType_t t_pxp_end = xTaskGetTickCount();
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
@@ -1287,8 +1308,7 @@ static void prep_task_fn(void* /*param*/) {
         }
 #endif
         if (!raw_returned) {
-        sentai_flow_m4_publish_frame(raw, DEMO_CAMERA_WIDTH,
-                                     DEMO_CAMERA_HEIGHT,
+        sentai_flow_m4_publish_frame(raw, cam_src_w(), cam_src_h(),
                                      sentai_cam_current_id());
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
@@ -1959,6 +1979,12 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     if (!sentai_cam_is_initialized()) {
         SERR_LOG(SERR_DET_CAM_NONE, 0);
         return -5;
+    }
+    // W24-T20: a single-input (RGB) model needs XRGB frames for the PXP
+    // scaler; packed YUV420 capture only feeds the dual-input YUV path.
+    if (!g_sentai_yuv_dual && g_sentai_cam_packed420) {
+        SERR_LOG(SERR_DET_CAM_FORMAT, 1);
+        return -9;
     }
 
     // Validate tensor fits staging buffer

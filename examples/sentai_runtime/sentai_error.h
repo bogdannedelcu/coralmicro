@@ -97,6 +97,7 @@ extern "C" {
 #define SERR_FLOW_M4_HEARTBEAT_STALL (SERR_MOD_FLOW | 0x10) // M4 heartbeat not advancing
 #define SERR_FLOW_M4_FRAME_DROPPED   (SERR_MOD_FLOW | 0x11) // M4 dropped frames (publisher faster than M4)
 #define SERR_FLOW_BAD_CAM_ID         (SERR_MOD_FLOW | 0x20) // cmd_start with bad cam_id
+#define SERR_FLOW_CAM_FORMAT         (SERR_MOD_FLOW | 0x21) // W24-T20: standalone flow.start refused, camera frames are packed YUV420 (not XRGB for the PXP scaler)
 #define SERR_FLOW_NOTIFY_TIMEOUT     (SERR_MOD_FLOW | 0x30) // ISR notify not received within deadline (sensor stalled?)
 #define SERR_FLOW_NOTIFY_OVERRUN     (SERR_MOD_FLOW | 0x31) // ISR notifies arriving faster than task can drain (compute overrun)
 
@@ -140,6 +141,7 @@ extern "C" {
 #define SERR_DET_TASK_FAIL      (SERR_MOD_DET | 0x45)   // Task creation failed
 #define SERR_DET_ALREADY_RUN    (SERR_MOD_DET | 0x46)   // Already running
 #define SERR_DET_EXIT_DIRTY     (SERR_MOD_DET | 0x47)   // Tasks didn't exit cleanly
+#define SERR_DET_CAM_FORMAT     (SERR_MOD_DET | 0x48)   // W24-T20: camera frame layout unusable by this path (val=1 packed YUV420 with a single-input RGB model, 2 packed frame reached the aux-slot producers)
 #define SERR_DET_STARTED        (SERR_MOD_DET | 0x80)   // Started (info)
 #define SERR_DET_STOPPED        (SERR_MOD_DET | 0x81)   // Stopped (info)
 

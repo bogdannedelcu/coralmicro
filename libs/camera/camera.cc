@@ -45,8 +45,31 @@ extern "C" {
     extern volatile uint32_t g_cam_buf_task_writes;
     extern volatile uint32_t g_cam_buf_task_unknown;
     extern volatile int      g_cam_current_id;       // build #946 — sync from task ctx
+    // W24-T20: runtime sensor geometry + receiver width divisor (camera_support.c).
+    // m_ncamera is NOT a non-cacheable MPU region (region 9 maps all SDRAM
+    // write-back), so the cache maintenance below must cover the whole live
+    // frame: g_runtime_cam_h rows of (g_runtime_cam_w / g_sentai_csi_wdiv) * 4 B.
+    // Sized by the compile-time VGA constants it covered only rows 0..239 of an
+    // SXGA frame and every CPU reader of the rows above could see stale lines.
+    extern volatile uint32_t g_runtime_cam_w;
+    extern volatile uint32_t g_runtime_cam_h;
+    extern volatile uint32_t g_sentai_csi_wdiv;
 }
 #include "fsl_pxp.h"
+
+// Bytes the CSI writes per frame in the current mode (W24-T20).  Bounded by the
+// CAM_MAX slot so a bad divisor cannot make the cache loop run past the buffer.
+static inline uint32_t LiveFrameBytes(void) {
+  const uint32_t wdiv = (g_sentai_csi_wdiv == 0u) ? 1u : g_sentai_csi_wdiv;
+  uint32_t bytes = g_runtime_cam_h * ((g_runtime_cam_w / wdiv) + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP;
+#if defined(CAM_MAX_HEIGHT)
+  const uint32_t slot = CAM_MAX_HEIGHT * (CAM_MAX_WIDTH + LINE_PADDING) * CAM_MAX_BUFFER_BPP;
+#else
+  const uint32_t slot = 960u * (1280u + LINE_PADDING) * 4u;   // cm4 TU: camera_support.h has no CAM_MAX_*
+#endif
+  if (bytes == 0u || bytes > slot) bytes = slot;
+  return bytes;
+}
 
 /*******************************************************************************
  * Definitions
@@ -1154,10 +1177,9 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 
     if (status == kStatus_Success) {
       DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\r\n",
-                  (unsigned)(DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP));
+                  (unsigned)LiveFrameBytes());
 #if (__CORTEX_M == 7) || (__CORTEX_M == 4)
-      DCACHE_InvalidateByRange(buffer,
-                               DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
+      DCACHE_InvalidateByRange(buffer, LiveFrameBytes());
 #if defined(__DSB)
   __DSB();
 #else
@@ -1228,8 +1250,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 
     if (buffer) {
 #if (__CORTEX_M == 7) || (__CORTEX_M == 4)
-      DCACHE_CleanInvalidateByRange(buffer,
-                                    DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
+      DCACHE_CleanInvalidateByRange(buffer, LiveFrameBytes());
 #endif
       status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
       DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\r\n", status);

@@ -83,6 +83,33 @@ int      sentai_storage_mode_active(void);
 #include "sentai_virtual_camera.h"
 #include "sentai_fr.h"
 
+// ===================== Runtime SOURCE geometry of the camera frames =========
+// W24-T20 (audit agent/audit_runtime_geometry_2026-11-02.md).  The sensor
+// geometry is a runtime property since W24-T11: libs/camera/camera_support.c
+// owns g_runtime_cam_w/h (640x480 or 1280x960, camera.set_hw() before init())
+// and the capture layout is either XRGB/XYUV 4 B/px (row pitch w*4) or packed
+// YUV420 (CSI stores [C,Y1,Y2,0] per pixel pair, row pitch (w/2)*4).  Every
+// CPU or PXP reader of a raw frame buffer MUST take width / height / pitch from
+// these helpers; the compile-time DEMO_CAMERA_* constants describe only the
+// VGA default and produced interleaved half-row images (rc 0) at SXGA.
+extern "C" volatile uint32_t g_runtime_cam_w;
+extern "C" volatile uint32_t g_runtime_cam_h;
+extern volatile int g_sentai_cam_packed420;
+static inline int cam_src_w(void) {
+  return sentai_virtual_camera_active() ? sentai_virtual_camera_width() : (int)g_runtime_cam_w;
+}
+static inline int cam_src_h(void) {
+  return sentai_virtual_camera_active() ? sentai_virtual_camera_height() : (int)g_runtime_cam_h;
+}
+// Packed YUV420 frames are not XRGB/XYUV: the PXP scaler paths cannot read them.
+static inline bool cam_src_packed(void) {
+  return g_sentai_cam_packed420 != 0 && !sentai_virtual_camera_active();
+}
+static inline size_t cam_src_pitch(void) {
+  return cam_src_packed() ? (size_t)(cam_src_w() / 2) * (size_t)DEMO_CAMERA_BUFFER_BPP
+                          : (size_t)(cam_src_w() + LINE_PADDING) * (size_t)DEMO_CAMERA_BUFFER_BPP;
+}
+
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
 //
@@ -2614,14 +2641,12 @@ extern "C" int sentai_cam_peek5_b40(uint8_t* dst5) {
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   if (idx < 0 || !raw) return -2;
-  const size_t pitch = (size_t)(DEMO_CAMERA_WIDTH + LINE_PADDING)
-                       * (size_t)DEMO_CAMERA_BUFFER_BPP;
-  static const int kRows[5] = {
-      0,
-      DEMO_CAMERA_HEIGHT / 4,
-      DEMO_CAMERA_HEIGHT / 2,
-      (3 * DEMO_CAMERA_HEIGHT) / 4,
-      DEMO_CAMERA_HEIGHT - 1};
+  // Runtime geometry (W24-T20): rows spread over the live frame height and the
+  // live row pitch (packed YUV420: byte 160 of the row is the C byte of pixel
+  // pair 40, still one fixed byte per row, which is all this oracle needs).
+  const size_t pitch = cam_src_pitch();
+  const int fh = cam_src_h();
+  const int kRows[5] = {0, fh / 4, fh / 2, (3 * fh) / 4, fh - 1};
   for (int i = 0; i < 5; ++i) {
     dst5[i] = raw[(size_t)kRows[i] * pitch + (size_t)40 * 4];
   }
@@ -2665,14 +2690,9 @@ extern "C" int sentai_cam_peek5_tags(uint8_t* dst5, int32_t* out4) {
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   if (idx < 0 || !raw) return -2;
-  const size_t pitch = (size_t)(DEMO_CAMERA_WIDTH + LINE_PADDING)
-                       * (size_t)DEMO_CAMERA_BUFFER_BPP;
-  static const int kRows[5] = {
-      0,
-      DEMO_CAMERA_HEIGHT / 4,
-      DEMO_CAMERA_HEIGHT / 2,
-      (3 * DEMO_CAMERA_HEIGHT) / 4,
-      DEMO_CAMERA_HEIGHT - 1};
+  const size_t pitch = cam_src_pitch();   // runtime geometry (W24-T20), see peek5_b40
+  const int fh = cam_src_h();
+  const int kRows[5] = {0, fh / 4, fh / 2, (3 * fh) / 4, fh - 1};
   for (int i = 0; i < 5; ++i) {
     dst5[i] = raw[(size_t)kRows[i] * pitch + (size_t)40 * 4];
   }
@@ -2706,21 +2726,16 @@ extern "C" int sentai_cam_peek_col(int x, uint8_t* dst, int rows, int32_t* out3)
 extern "C" int sentai_cam_peek_col_byte(int x, int byte, uint8_t* dst, int rows, int32_t* out3) {
   extern volatile uint8_t g_cam_buf_id[];
   extern volatile uint32_t g_cam_buf_ts_us[];
-  extern volatile int g_sentai_cam_packed420;
-  extern volatile uint32_t g_runtime_cam_w;
-  extern volatile uint32_t g_runtime_cam_h;
   if (byte < 0 || byte > 3) return -1;
   // Runtime geometry (EXP-s266): at SXGA the frame is 1280x960 and the row pitch
   // 1280*4 (640*4 in packed YUV420 mode), not the compile-time VGA constants --
   // with those this function read two columns interleaved over half the frame.
-  const int fw = (int)g_runtime_cam_w, fh = (int)g_runtime_cam_h;
+  const int fw = cam_src_w(), fh = cam_src_h();
   if (!dst || !out3 || x < 0 || x >= fw || rows <= 0 || rows > fh) return -1;
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   if (idx < 0 || !raw) return -2;
-  const size_t pitch = g_sentai_cam_packed420
-                           ? (size_t)(fw / 2) * (size_t)DEMO_CAMERA_BUFFER_BPP
-                           : (size_t)(fw + LINE_PADDING) * (size_t)DEMO_CAMERA_BUFFER_BPP;
+  const size_t pitch = cam_src_pitch();
   const uint8_t* p = raw + (size_t)x * DEMO_CAMERA_BUFFER_BPP + (size_t)byte;
   for (int r = 0; r < rows; ++r) dst[r] = p[(size_t)r * pitch];
   out3[0] = idx;
@@ -3059,9 +3074,11 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   return 0;
 }
 
-extern "C" volatile uint32_t g_runtime_cam_w;   // libs/camera/camera_support.c (W24-T11)
-extern "C" volatile uint32_t g_runtime_cam_h;
-
+// camera.set_resolution(): OUTPUT size of the JPEG / RGB capture helpers only
+// (W24-T20).  g_cam_width/height never describe the frame buffers: the source
+// geometry is g_runtime_cam_w/h (sentai_cam_get_width/height below).  Before
+// this the YUV pipeline and the zero-copy grey grab used g_cam_width as the
+// source pitch, so set_resolution(320, 240) silently corrupted them.
 extern "C" int sentai_cam_set_res(int w, int h) {
   if (w <= 0 || h <= 0 || w > (int)g_runtime_cam_w || h > (int)g_runtime_cam_h) return -1;
   g_cam_width = w;
@@ -3301,7 +3318,6 @@ extern "C" int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_
                                          uint8_t* y_dst, uint8_t* uv_dst);
 extern "C" int sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst);
 extern "C" int sentai_detection_is_running(void);
-extern volatile int g_sentai_cam_packed420;   /* defined below (option B capture mode) */
 extern "C" __attribute__((section(".sdram_text")))
 int sentai_pxp_chase_test(int n_slices, uint32_t* out, int out_max) {
   if (!g_cam_initialized) return -1;
@@ -3577,10 +3593,15 @@ extern "C" int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_
 extern "C" int sentai_yuv420_extract_test(const char* y_path, const char* uv_path) {
   static uint8_t s_y[640 * 480]      __attribute__((section(".sdram_bss"), aligned(32)));
   static uint8_t s_uv[320 * 240 * 2] __attribute__((section(".sdram_bss"), aligned(32)));
+  // The plane buffers are VGA-sized and the PXP pass needs XYUV rows: refuse
+  // any other source geometry instead of dumping interleaved half rows (W24-T20).
+  if (cam_src_w() != 640 || cam_src_h() != 480) return -5;
+  if (cam_src_packed()) return -7;
   uint8_t* raw = 0;
   int idx = sentai_cam_grab_latest(&raw);
   if (idx < 0 || !raw) return -1;
   int rc = sentai_pxp_xyuv_to_yuv420(raw, 640, 480, s_y, s_uv);
+  sentai_cam_return_raw(idx);
   if (rc) return -2;
   if (y_path  && !sentai_fs_write(y_path,  s_y,  (int)sizeof(s_y)))  return -3;
   if (uv_path && !sentai_fs_write(uv_path, s_uv, (int)sizeof(s_uv))) return -4;
@@ -4668,18 +4689,15 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
 extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   if (sentai_detection_is_running()) return -10;  // pipeline owns PXP
   if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
+  if (cam_src_packed()) return -7;   // frame is not XRGB (W24-T20)
+  const int src_w = cam_src_w(), src_h = cam_src_h();   // runtime geometry
+  if (width > src_w || height > src_h) return -5;
   uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   TickType_t t1 = xTaskGetTickCount();
   if (idx < 0 || !raw) return -2;
 
-  int src_w = sentai_virtual_camera_active()
-                  ? sentai_virtual_camera_width()
-                  : DEMO_CAMERA_WIDTH;
-  int src_h = sentai_virtual_camera_active()
-                  ? sentai_virtual_camera_height()
-                  : DEMO_CAMERA_HEIGHT;
   int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                   buf, width, height);
   TickType_t t2 = xTaskGetTickCount();
@@ -4728,12 +4746,18 @@ static void cbcr_deinterleave(const uint8_t* cbcr, uint8_t* cb, uint8_t* cr, int
   for (; i < pairs; ++i) { cb[i] = cbcr[2 * i]; cr[i] = cbcr[2 * i + 1]; }
 }
 
-// Capture + JPEG through the YUV path (full camera resolution only).
+// Capture + JPEG through the YUV path (VGA XYUV frames only: the plane buffers
+// above are 640x480 and the PXP split pass reads XYUV rows).
+// Returns the JPEG size, or -1 camera off, -2 no frame, -5 source geometry is
+// not 640x480, -6 frames are XRGB (use the RGB path), -7 packed YUV420 frames,
+// -10 pipeline running.
 extern "C" int sentai_cam_capture_jpeg_yuv(uint8_t* jpeg_buf, int jpeg_buf_size, int quality) {
   if (sentai_detection_is_running()) return -10;
   if (!g_cam_initialized) return -1;
   if (!sentai_camera_get_yuv_mode()) return -6;   // frames are XRGB: use the RGB path
-  const int w = DEMO_CAMERA_WIDTH, h = DEMO_CAMERA_HEIGHT;
+  if (g_sentai_cam_packed420) return -7;          // W24-T20: [C,Y1,Y2,0] pairs, not XYUV
+  const int w = DEMO_CAMERA_WIDTH, h = DEMO_CAMERA_HEIGHT;   // = sizeof the plane buffers
+  if ((int)g_runtime_cam_w != w || (int)g_runtime_cam_h != h) return -5;   // SXGA: planes too small
   uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();
   int idx = sentai_cam_get_raw_with_recovery(&raw);
@@ -4813,17 +4837,13 @@ extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   int total_pixels = h * w * ch;
   uint8_t* tensor_buf = tflite::GetTensorData<uint8_t>(input);
 
+  if (cam_src_packed()) return -7;   // frame is not XRGB (W24-T20)
+  const int src_w = cam_src_w(), src_h = cam_src_h();   // runtime geometry
   TickType_t t_start = xTaskGetTickCount();
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   TickType_t t_frame = xTaskGetTickCount();
   if (idx < 0 || !raw) return -2;
-  int src_w = sentai_virtual_camera_active()
-                  ? sentai_virtual_camera_width()
-                  : DEMO_CAMERA_WIDTH;
-  int src_h = sentai_virtual_camera_active()
-                  ? sentai_virtual_camera_height()
-                  : DEMO_CAMERA_HEIGHT;
   int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                   tensor_buf, w, h);
   sentai_cam_return_raw(idx);
@@ -5395,12 +5415,20 @@ extern "C" int sentai_cam_rotate(int cam_id, int degrees) {
   return ok ? 0 : -2;
 }
 
-extern "C" int sentai_cam_get_width(void) {
+// SOURCE geometry of the frame buffers (W24-T20): what every reader of a raw
+// frame must use as width / height.  Until build 1760 this returned the
+// set_resolution() output size, which several paths used as the source pitch.
+extern "C" int sentai_cam_get_width(void)  { return cam_src_w(); }
+extern "C" int sentai_cam_get_height(void) { return cam_src_h(); }
+
+// OUTPUT size chosen with camera.set_resolution() (defaults to the sensor
+// geometry; camera.jpeg() / save_jpeg() / resolution() use it).
+extern "C" int sentai_cam_get_out_width(void) {
   if (sentai_virtual_camera_active()) return sentai_virtual_camera_width();
   return g_cam_width;
 }
 
-extern "C" int sentai_cam_get_height(void) {
+extern "C" int sentai_cam_get_out_height(void) {
   if (sentai_virtual_camera_active()) return sentai_virtual_camera_height();
   return g_cam_height;
 }
@@ -5414,15 +5442,10 @@ extern "C" uint32_t sentai_cam_get_sensor_frames(void) {
   return g_camera_sensor_frames;
 }
 
-extern "C" int sentai_cam_get_native_width(void) {
-  if (sentai_virtual_camera_active()) return sentai_virtual_camera_width();
-  return coralmicro::CameraTask::kWidth;
-}
-
-extern "C" int sentai_cam_get_native_height(void) {
-  if (sentai_virtual_camera_active()) return sentai_virtual_camera_height();
-  return coralmicro::CameraTask::kHeight;
-}
+// camera.native_res(): the sensor geometry selected with set_hw() (640x480 or
+// 1280x960), not the compile-time CameraTask::kWidth/kHeight (W24-T20).
+extern "C" int sentai_cam_get_native_width(void)  { return cam_src_w(); }
+extern "C" int sentai_cam_get_native_height(void) { return cam_src_h(); }
 
 // ===================== AIfES sensor capture functions =====================
 
@@ -5431,12 +5454,8 @@ extern "C" int sentai_cam_get_native_height(void) {
 extern "C" int sentai_aifes_capture_camera(uint8_t* out, int w, int h, int grayscale) {
   if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
   if (!out || w <= 0 || h <= 0) return -3;
-  int src_w = sentai_virtual_camera_active()
-                  ? sentai_virtual_camera_width()
-                  : DEMO_CAMERA_WIDTH;
-  int src_h = sentai_virtual_camera_active()
-                  ? sentai_virtual_camera_height()
-                  : DEMO_CAMERA_HEIGHT;
+  if (cam_src_packed()) return -7;   // frame is not XRGB (W24-T20)
+  const int src_w = cam_src_w(), src_h = cam_src_h();   // runtime geometry
   if (w > src_w || h > src_h) return -5;
   
   // Capture raw frame

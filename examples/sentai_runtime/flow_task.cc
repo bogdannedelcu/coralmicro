@@ -100,8 +100,20 @@ typedef struct { uint32_t v; } __attribute__((packed, aligned(1))) u32_unaligned
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
 #define DEMO_CAMERA_WIDTH  640
 #define DEMO_CAMERA_HEIGHT 480
+// SIM / EMU frames are VGA XRGB by construction (virtual camera).
+static inline int flow_cam_src_w(void)  { return DEMO_CAMERA_WIDTH; }
+static inline int flow_cam_src_h(void)  { return DEMO_CAMERA_HEIGHT; }
+static inline int flow_cam_packed(void) { return 0; }
 #else
 #include "libs/camera/camera_support.h"   // DEMO_CAMERA_WIDTH/HEIGHT
+// W24-T20: runtime SOURCE geometry + capture layout of the camera frame buffers
+// (sentai_runtime.cc): 640x480 or 1280x960, XRGB/XYUV or packed YUV420.
+extern "C" int sentai_cam_get_width(void);
+extern "C" int sentai_cam_get_height(void);
+extern volatile int g_sentai_cam_packed420;
+static inline int flow_cam_src_w(void)  { return sentai_cam_get_width(); }
+static inline int flow_cam_src_h(void)  { return sentai_cam_get_height(); }
+static inline int flow_cam_packed(void) { return g_sentai_cam_packed420; }
 #endif
 #include "examples/sentai_runtime/flow_shared.h"
 #include "examples/sentai_runtime/sentai_error.h"
@@ -943,8 +955,9 @@ static void publisher_task_fn(void* /*arg*/) {
             }
             s_pub_grab_fail_streak = 0;
 
-            sentai_flow_publish_frame(raw, DEMO_CAMERA_WIDTH,
-                                      DEMO_CAMERA_HEIGHT, s_cam_id);
+            // Runtime source geometry (W24-T20): at SXGA the VGA constants
+            // scaled a wrong-pitch window -> dx/dy noise with normal confidence.
+            sentai_flow_publish_frame(raw, flow_cam_src_w(), flow_cam_src_h(), s_cam_id);
             s_pub_frames++;
             s_t_loop_cyc = dwt_now() - loop_t0;
             sentai_cam_return_raw(idx);
@@ -1302,6 +1315,13 @@ extern "C" int sentai_flow_start(int cam_id) {
     if (cam_id != -1 && cam_id != 0 && cam_id != 1) {
         SERR_LOG(SERR_FLOW_BAD_CAM_ID, (uint32_t)cam_id);
         return -2;
+    }
+    // W24-T20: the standalone publisher scales raw XRGB frames with the PXP;
+    // packed YUV420 frames ([C,Y1,Y2,0] pairs) would give noise with normal
+    // confidence.  The prep-slot path (cam_id -1) gets its grey from PrepTask.
+    if (cam_id != -1 && flow_cam_packed()) {
+        SERR_LOG(SERR_FLOW_CAM_FORMAT, 1);
+        return -4;
     }
     volatile flow_shared_t* sh = &FLOW_SHARED();
     sentai_flow_enable();

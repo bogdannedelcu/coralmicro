@@ -1260,8 +1260,8 @@ void CamDumpRegistersOnly(void)
             {0x6000, 0x603f}
     };
 
-    printf("Camera %dx%d@%d %d bits per pixel\n",
-    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, (int)g_runtime_fps, DEMO_CAMERA_BUFFER_BPP * 8);
+    printf("Camera %ux%u@%d %d bits per pixel\n",
+    (unsigned)g_runtime_cam_w, (unsigned)g_runtime_cam_h, (int)g_runtime_fps, DEMO_CAMERA_BUFFER_BPP * 8);
 
     for (int n=0; n<sizeof(ov5640_regs)/sizeof(ov5640_regs[0]); n++)
     {
@@ -1280,8 +1280,8 @@ void CamDumpRegisters(void)
     };
     uint8_t val;
 
-    printf("Camera %dx%d@%d %d bits per pixel\n",
-    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, (int)g_runtime_fps, DEMO_CAMERA_BUFFER_BPP * 8);
+    printf("Camera %ux%u@%d %d bits per pixel\n",
+    (unsigned)g_runtime_cam_w, (unsigned)g_runtime_cam_h, (int)g_runtime_fps, DEMO_CAMERA_BUFFER_BPP * 8);
 
     for (int n=0; n<sizeof(ov5640_regs)/sizeof(ov5640_regs[0]); n++)
     {

@@ -1,0 +1,98 @@
+[
+ {
+  "mode": "sxga30p",
+  "checks": {
+   "set_hw": {
+    "ok": true,
+    "detail": "set_hw(1280,960)"
+   },
+   "packed420": {
+    "ok": true,
+    "detail": "packed420(1) -> 1 (returns the mode)"
+   },
+   "init": {
+    "ok": true,
+    "detail": "init(1, 30) -> 0"
+   },
+   "native_res": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "resolution_default": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "peek_col_rows": {
+    "ok": true,
+    "detail": "rows 960 (byte 1)"
+   },
+   "peek_col_bottom_live": {
+    "ok": true,
+    "detail": "max-min of rows >= h/2 = 159"
+   },
+   "save_jpeg_refused_packed": {
+    "ok": true,
+    "detail": "RuntimeError: cam capture fail"
+   },
+   "set_resolution_320": {
+    "ok": true,
+    "detail": "set_resolution(320,240)"
+   },
+   "resolution_after": {
+    "ok": true,
+    "detail": "(320, 240)"
+   },
+   "native_res_unchanged": {
+    "ok": true,
+    "detail": "(1280, 960)"
+   },
+   "peek_col_rows_after_set_res": {
+    "ok": true,
+    "detail": "rows 960"
+   },
+   "set_resolution_restore": {
+    "ok": true,
+    "detail": "back to sensor size"
+   },
+   "set_resolution_too_big": {
+    "ok": true,
+    "detail": "w*2 refused"
+   },
+   "prep_once": {
+    "ok": true,
+    "detail": "prep_once -> 0"
+   },
+   "prep_slots_skipped_packed": {
+    "ok": true,
+    "detail": "GRAY_NATIVE seq 0 -> 0"
+   },
+   "flow_start_refused_packed": {
+    "ok": true,
+    "detail": "RuntimeError: flow.start failed (-4)"
+   },
+   "peek5_b40": {
+    "ok": true,
+    "detail": "(0, 6, 182, 19, 17, 8)"
+   },
+   "peek5_tags": {
+    "ok": true,
+    "detail": "(1, 0, 0, 255, 5, 181, 19, 13, 5)"
+   },
+   "yuv420_test_refused": {
+    "ok": true,
+    "detail": "yuv420_test -> -5"
+   },
+   "serr_det_cam_format_logged": {
+    "ok": true,
+    "detail": "SERR 0x0448 (prep producers skipped) present"
+   },
+   "serr_flow_cam_format_logged": {
+    "ok": true,
+    "detail": "SERR 0x0E21 present"
+   }
+  },
+  "version": "SentAI v1.1 build 1763 (2026-11-02 06:28:32) board 58eb",
+  "dmesg_tail": "[         0] I E:0F01:1\r\n[      3272] I E:0A06:3\r\n[      3811] I E:0500:30\r\n[      4697] I E:0A12:12\r\n[      6815] I E:0A00:0\r\n[      6991] I E:0A00:0\r\n[      8811] I E:0A00:0\r\n[      8811] I E:0A00:0\r\n[      8811] I E:0A00:0\r\n[      8811] I E:0A00:0\r\n[      8811] I E:0A0D:40\r\n[     13811] I E:0448:2\r\n[     13811] I E:0E21:1",
+  "pass": true
+ }
+]

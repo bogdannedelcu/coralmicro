@@ -126,6 +126,29 @@ on other OV5640 modules.  Folder `experiments/s265_camera_color_calibration/` (`
   frames**, per-camera step 4 display frames; cam1 one display frame behind cam0 by rolling-shutter
   geometry.  The display's own jitter (59.2 Hz ± 1.8 ms) is the residual.
 
+### 2026-11-02 morning — W24-T20 runtime-geometry fixes (builds 1762–1763) + EXP-s267 + s266 SXGA re-run
+- Fixed the 9 class-A findings of `agent/audit_runtime_geometry_2026-11-02.md` in one pass: one
+  set of helpers in `sentai_runtime.cc` (`cam_src_w/h()`, `cam_src_packed()`, `cam_src_pitch()`);
+  `sentai_cam_get_width/height()` = SOURCE geometry, `set_resolution()` moved to
+  `sentai_cam_get_out_width/height()` (jpeg/save_jpeg/resolution only); D-cache invalidate/clean
+  in `libs/camera/camera.cc` sized from the runtime geometry (`LiveFrameBytes()`); aux prep slots,
+  RGB model prep, standalone flow, capture_rgb/to_tensor/aifes, capture_jpeg_yuv, peek5_*,
+  yuv420_extract_test, native_res on runtime dims; packed YUV420 refused where the PXP needs
+  XRGB (new codes `SERR_DET_CAM_FORMAT` 0x0448, `SERR_FLOW_CAM_FORMAT` 0x0E21; zero-copy grey
+  grab -1).  Gotchas: the cm4 TU of camera.cc has no `CAM_MAX_*`; the `"%nobits @"` section
+  trick broke the SIM compile of detection_task.cc since W24-T11 (guarded); the SIM link is
+  broken anyway by ~26 ARM-only W24 symbols → OP-S10-W24-T21.
+- EXP-s267 `smoke.py`: VGA30 legacy 21/21, SXGA15 legacy 22/22, SXGA30 packed 22/22 on build
+  1763 (first run: four test bugs — dark monitor, `packed420(1)` returns 1, `flow.start` raises,
+  slots must be enabled for the producers to fire, `Repl.value()` returns only the last dmesg
+  line).
+- s266 iter6/iter7 (SXGA on 1763): SXGA15 cam1 PASS again, cam0 column 40 still ambiguous →
+  geometry, not stale cache.  **SXGA30 packed `ratio(1,1)` alternates 2:2** (FB-done ring tags
+  1001…, two entries per `seq`) and the two sensors are ~17 ms out of phase (intervals 33.4 /
+  16.4 / 33.4 / 50.6 ms); `stats()["period_us"]` = 16713 there is the 60 Hz event grid.  Ring
+  read without a consumer — confirm with the pipeline running.  Open: alternation counter at
+  SXGA30 packed, cam1 packed Y1 band table, cam0 SXGA column.
+
 ### Open after this session
 Option B production integration (3-channel H×W/2 stem by weight re-indexing, sensor
 row from init, frame-layout flag for JPEG/flow/markers); W24-T13 instruction loop for

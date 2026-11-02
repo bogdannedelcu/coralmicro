@@ -2,7 +2,7 @@
 
 **WBS**: OP-S10-W24-T19
 **Started**: 2026-11-01 (late evening, scaffold + first run)
-**Status**: 🟢 VGA30, VGA45 PASS and SXGA15 PASS on cam1 (30 s each); VGA60 inconclusive (display tearing vs camera mix undecidable without a redundant code); SXGA15 cam0 column unusable (geometry), SXGA30 packed needs the FB-done ring for cadence and a packed-layout check for cam1. Firmware: SXGA JPEG and `peek_col` fixed (builds 1757–1760).
+**Status**: 🟢 VGA30, VGA45 PASS and SXGA15 PASS on cam1 (30 s each, re-confirmed on build 1763); VGA60 inconclusive (display tearing vs camera mix undecidable without a redundant code); SXGA15 cam0 column unusable (geometry, not cache); **SXGA30 packed: `ratio(1,1)` alternates 2:2** (FB-done ring, iter7) and the two sensors are ~17 ms out of phase — open. Firmware: SXGA JPEG and `peek_col` fixed (builds 1757–1760), runtime-geometry audit fixes (1762–1763, W24-T20, EXP-s267).
 **Board**: 58eb, build 1756, VGA 30 fps, both OV5640, Kamvas 16 as the time-code display
 
 ## Claim
@@ -129,6 +129,35 @@ one copy, a camera MUX mix would show the *other camera's* reversed stack in the
 vsynced display path.  The 1 % of 33/50 ms intervals at 60 fps are dequeues the MicroPython loop
 missed (one `peek_col` per frame at 60 Hz is at the REPL loop's limit); they are not drops in the
 CSI path.
+
+## iter6 / iter7 — SXGA re-run on build 1763 (W24-T20 fixes, 2026-11-02 07:05)
+
+`bash run_sxga.sh iter6_sxga15_t20 iter7_sxga30p_t20` after the runtime-geometry fixes (D-cache
+maintenance now covers the whole SXGA frame, see `agent/audit_runtime_geometry_2026-11-02.md`).
+
+| mode | capture interval (FB-done, peek loop) | frames / 30 s | decoded | per-camera code steps | verdict |
+|---|---|---|---|---|---|
+| SXGA 15 legacy (iter6) | 66.87 ms, sd 0.02 | 480 | cam1 240 / 240, cam0 0 | cam1 {8: 200, 7: 15, 9: 7, 11: 6}, 0 stale, 6 skipped (display gaps) | cam1 PASS again; cam0 column 40 still ambiguous on every frame → **not** a stale-cache effect (the bottom half of the column is live in s267), it is the band table / geometry of cam0 at SXGA (open) |
+| SXGA 30 packed (iter7) | 63.40 ms, sd 19.5 (peek loop, every other frame) | 600 | cam0 282, cam1 garbage | cam0 {8: 247, 7: 10, 16: 5} | unchanged vs iter5; cam1 packed Y1 codes still single-bit patterns (open) |
+
+**FB-done ring at SXGA30 packed with `ratio(1,1)`** (`iter7_sxga30p_t20/frame_log.json`, 64
+entries, read right after the run with no consumer dequeuing, so the "queue full" caveat of
+`frame_log()` applies and this needs confirming with the pipeline running):
+
+- tags `1001 1001 1001 …` — each camera delivers **two** consecutive frames before the MUX
+  flips: the alternation runs 2:2, not 1:1, in this mode.  Two consecutive entries share the
+  same `seq`, i.e. the frame counter the alternation scheduler uses advances once per two CSI
+  frames at SXGA30 packed (same family as the "frame_count is half rate" note of 2026-09-04).
+- FB-done intervals repeat the pattern 33.4, 16.4, 33.4, 50.6 ms: the per-sensor period is
+  33.4 ms (30.0 fps, as the SDK-patch row promises) and the two sensors are **~17 ms out of
+  phase** (not genlocked here), so the first frame after each flip arrives half a period early
+  or late.  `stats()["period_us"]` reports 16713 µs in this mode, which is the 60 Hz event grid,
+  not the sensor period.
+- Consequence for the time-code analysis: with the Python loop dequeuing every other frame and
+  the 2:2 pattern, the per-camera code step of 8 display frames (133 ms) is what one expects;
+  the "cadence" number of iter5/iter7 is not a camera measurement.  To validate 1:1 at SXGA30
+  packed the alternation counter must be fixed first (open, W24-T19 follow-up), then measured
+  with the pipeline as consumer and `frame_log(64)`.
 
 ## Files
 

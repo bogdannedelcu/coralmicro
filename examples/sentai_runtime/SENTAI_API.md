@@ -70,7 +70,7 @@ sentai
 - `sentai.camera.csi_mode([bus, cr18_or, cr20_or, wdiv])` → tuple `(bus, cr18_or, CR1, CR3, CR18, cr20_or, wdiv)`. EXP-s259 capture-layer probe, set before `init()`: CSI receiver data bus 24 (default, 4 B/px XRGB/XYUV), 16 (2 B/px) or 8 (1 B/px); raw CSICR18 / CSICR20 bits OR'd in after `CSI_Init()`; `wdiv` 2 halves the receiver width for streams carrying two pixels per pixel-link cycle. Downstream consumers (PXP, JPEG, flow, pipeline) still assume 4 B/px — diagnostics only. W24-T14.
 - `sentai.camera.csi_geom(w_cycles, h_lines)` → int. EXP-s259: receiver-only geometry override for the next `init()` (0, 0 = derive from the sensor geometry), used when the OV5640 ISP output size is re-programmed after init. W24-T14.
 - `sentai.camera.csi_settle(v)` → int. EXP-s259: MIPI D-PHY T-HSSETTLE override for the next `init()` (0 = table lookup). W24-T14.
-- `sentai.camera.packed420([on])` → int. EXP-s260 option B: capture the OV5640 "YUV420 for MIPI only" stream at 2 B/px (`[C,Y1,Y2,0]` per pixel pair; receiver at half width; sensor 0x4300=0x5F plus 0x460C/0x3824 on SXGA rows, written to the active camera after init) and let the detection PrepTask run the PXP byte-drop (`[C,Y1,Y2]`, 1.5 B/px) instead of the XYUV repack. Set before `init()`. Diagnostics / speed evaluation: JPEG, flow and markers still assume XYUV. W24-T16.
+- `sentai.camera.packed420([on])` → int. EXP-s260 option B: capture the OV5640 "YUV420 for MIPI only" stream at 2 B/px (`[C,Y1,Y2,0]` per pixel pair; receiver at half width; sensor 0x4300=0x5F plus 0x460C/0x3824 on SXGA rows, written to the active camera after init) and let the detection PrepTask run the PXP byte-drop (`[C,Y1,Y2]`, 1.5 B/px) instead of the XYUV repack. Set before `init()`. Diagnostics / speed evaluation: JPEG, flow and markers assume XRGB/XYUV and are REFUSED in packed mode since build 1762 (W24-T20): `jpeg()` / `save_jpeg()` raise `cam capture fail` (firmware -7), `flow.start(0|1)` raises `flow.start failed (-4)` (SERR 0x0E21), `pipeline.start` with a single-input RGB model returns -9 (SERR 0x0448 val 1), the aux prep slots (aruco / whycon / places / prep-slot flow) are not produced (SERR 0x0448 val 2 once) and the zero-copy grey grab returns -1; `peek_col(x, 1)`, `save_raw`, `frame_log` and the dual-input YUV pipeline work. W24-T16.
 - `sentai.camera.pxp_block16(on)` → int. PXP 16x16 processing blocks for the camera repack passes (default OFF = SDK 8x8). Faster repack under CSI load without the TPU (−30–40 %), slower USB transfer with the TPU streaming (invoke +10 %) — camera-only workloads. W24-T16.
 - `sentai.camera.chase_test(n)` → tuple. EXP-s261: PXP repack that follows the CSI writer slice by slice inside one frame (pipeline stopped); returns `(ok, n, detect_us, eof_us, done_after_eof_us, cmp_equal, same_buffer, rows_per_slice, ready_us_k, pxp_us_k, ...)`. W24-T15.
 - `sentai.pipeline.ocram_ring([on])` → int. EXP-s262: stream the packed-YUV420 SXGA TPU input through a 3-slot OCRAM ring (PXP producer slice by slice, USB consumer inside `SendInputs`) instead of the SDRAM staging buffer; one frame in flight; camera must be initialised. SXGA option B 13.0 → 15.6 fps, invoke 74 → 61 ms. Default off. W24-T15.
@@ -779,14 +779,19 @@ sensor frame rate (15 fps) regardless of Python activity.
 ```
 
 ### `sentai.camera.resolution()` → tuple
-Current capture output resolution `(width, height)`.
+Capture **output** size `(width, height)` used by `jpeg()` / `save_jpeg()` (set with
+`set_resolution()`, defaults to the sensor geometry).  It never describes the frame
+buffers: use `native_res()` for that.
 ```python
 >>> sentai.camera.resolution()
 (320, 240)
 ```
 
 ### `sentai.camera.set_resolution(w, h)` → int
-Set capture output resolution (PXP hardware scaler). Max = native sensor resolution. Returns 0 on success.
+Set the capture output size (PXP hardware scaler) for `jpeg()` / `save_jpeg()`.  Max = the
+sensor geometry (`native_res()`).  Returns 0 on success, -1 if out of range.  Since build
+1761 (W24-T20) this no longer affects the pipeline, flow or zero-copy grey paths, which
+always read the frame buffers at the sensor geometry.
 ```python
 >>> sentai.camera.set_resolution(320, 240)
 0
@@ -795,10 +800,12 @@ Set capture output resolution (PXP hardware scaler). Max = native sensor resolut
 ```
 
 ### `sentai.camera.native_res()` → tuple
-Native sensor resolution `(width, height)`.
+Sensor geometry of the frame buffers `(width, height)`: `(640, 480)` by default,
+`(1280, 960)` after `set_hw(1280, 960)` (build ≥ 1761; earlier builds always reported
+the compile-time 640x480).
 ```python
 >>> sentai.camera.native_res()
-(1280, 720)
+(1280, 960)
 ```
 
 ### `sentai.camera.jpeg(quality=75)` → bytes
