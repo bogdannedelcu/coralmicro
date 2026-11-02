@@ -144,6 +144,27 @@ now close (9.5 vs 10.0); the module-specific residual of SAI-CAM-0002 shows up o
 magenta / red regardless of position (RAW crosstalk).  Alignment check for future runs: both
 `visible_screen_rect`s must cover the grid and the locate residual stay ≈ 1 px.
 
+## Distance test: board at ~45 cm, grid in the centre (2026-11-02, `measure_position.sh dist45b 0.7 expo`)
+
+Both cameras see the whole screen (cam0 1619x1080 of it, cam1 all; locate residual 0.7 px; the
+screen fills ~45–52 % of each frame).  With the screen on black and auto exposure the frame
+mean drives the AEC up and the bright patches clip (yellow 254/255 → ΔE00 20.6 / 16.1 — an
+exposure artefact, `out/measure_dist45`), so the measurement normalises the exposure on the
+neutral 8 patch first (s265 `expo` stage, manual AGC) and draws the grid in the central 70 % of
+the common rect (viewing angles < 10°, patches ≈ 1000 px each).
+
+| | cam0 (SAI-CAM-0001) | cam1 (SAI-CAM-0002) |
+|---|---|---|
+| ΔE00 mean (ΔE76) | **7.9** (13.6) | **8.4** (14.4) |
+| ΔE76 greys | 6.6 | 5.6 |
+| worst patches | yellow 43, orange yellow (dark, desaturated: 198,188,122) | orange yellow 35, yellow (orange: 253,182,95) |
+
+With the panel angle removed the two modules are within 0.5 ΔE00 of each other and both
+better than at a few cm (8.7 / 12.4 → 7.9 / 8.4).  The remaining module signature of
+SAI-CAM-0002 is the yellow → orange shift (RAW G/B crosstalk, s265); SAI-CAM-0001's yellow is
+dark instead.  A re-tune at this distance (all 24 patches at once, exposure normalised) is the
+natural next step if better than ~8 ΔE00 is needed.
+
 ## Schema of `modules.json`
 
 ```

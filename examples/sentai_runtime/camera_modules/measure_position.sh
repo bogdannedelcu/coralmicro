@@ -3,10 +3,14 @@
 # position of the board (e.g. after rotating it 180 deg so cam0 / cam1 swap their place in
 # front of the display): reset + init (the /cam files apply), re-localise (Gray codes), grid
 # measurement in the common screen rect, comparison image.
-# usage: bash measure_position.sh <tag>        -> out/measure_<tag>/ + out/compare_<tag>.png
+# usage: bash measure_position.sh <tag> [frac] [pre_stages]  -> out/measure_<tag>/ + out/compare_<tag>.png
+#   pre_stages (optional, e.g. "expo"): tune_colors stages run BEFORE the measurement, e.g. the
+#   manual-exposure normalisation on the neutral 8 patch when the screen does not fill the frame
+#   frac (default 1.0): the grid is drawn in the central <frac> of the common screen rect
+#   (smaller region = smaller viewing angles on the panel; use ~0.5 at 40-50 cm)
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd); S265=$HERE/../experiments/s265_camera_color_calibration
-TAG=${1:?tag}; OUT=$HERE/out/measure_$TAG; mkdir -p "$OUT"
+TAG=${1:?tag}; FRAC=${2:-1.0}; PRE=${3:-}; OUT=$HERE/out/measure_$TAG; mkdir -p "$OUT"
 cd "$HERE"
 python3 - <<'PY' 2>&1 | grep -v Warning
 import sys, time, glob, serial, re
@@ -28,7 +32,11 @@ PY
 touch /tmp/mps_pause
 echo "== locate"
 (cd "$S265" && python3 locate.py --out "$OUT" 2>&1 | grep -v Warning | grep -E "^cam|common|residual|Error|Traceback")
-REGION=$(python3 -c "import json; c=json.load(open('$OUT/locate.json'))['common_rect']; print(','.join(str(int(round(v))) for v in c))")
+REGION=$(python3 -c "
+import json; x,y,w,h=json.load(open('$OUT/locate.json'))['common_rect']; f=float('$FRAC')
+cx,cy=x+w/2,y+h/2; w2,h2=w*f,h*f
+print(','.join(str(int(round(v))) for v in (cx-w2/2, cy-h2/2, w2, h2)))")
+if [ -n "$PRE" ]; then echo "== pre-stages $PRE (region $REGION)"; (cd "$S265" && python3 tune_colors.py --out "$OUT" --cams 0,1 --stages "$PRE" --region "$REGION" --avg 2 2>&1 | grep -v Warning | grep -E "stage|mean dE76|abort|Traceback" | cut -c1-110); fi
 echo "== measure (grid, region $REGION)"
 (cd "$S265" && python3 tune_colors.py --out "$OUT" --cams 0,1 --stages measure --region "$REGION" --avg 2 2>&1 | grep -v Warning | grep -E "measure:|abort|Traceback" | cut -c1-90)
 (cd "$S265" && python3 show_pattern.py --quit >/dev/null 2>&1)
