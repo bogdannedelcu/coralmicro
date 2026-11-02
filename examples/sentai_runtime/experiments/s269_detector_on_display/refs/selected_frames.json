@@ -1,0 +1,27 @@
+{
+ "barn_10k_v4_merged": [
+  "synth_edapa_barn_product_v2_001026.txt",
+  "synth_edapa_barn_product_v2_014074.txt",
+  "synth_edapa_barn_product_v2_002966.txt",
+  "synth_edapa_barn_product_v2_009264.txt",
+  "synth_edapa_barn_product_v2_009780.txt"
+ ],
+ "bologna_10k_v1_merged_20260913_084034": [
+  "synth_edapa_bologna_004142.txt",
+  "synth_edapa_bologna_006016.txt",
+  "synth_edapa_bologna_011109.txt",
+  "synth_edapa_bologna_010195.txt",
+  "synth_edapa_bologna_007670.txt"
+ ],
+ "cairo_10k_v1_merged_20260920_141800": [
+  "synth_edapa_cairo_007571.txt",
+  "synth_edapa_cairo_001518.txt",
+  "synth_edapa_cairo_004227.txt",
+  "synth_edapa_cairo_010200.txt",
+  "synth_edapa_cairo_006912.txt"
+ ],
+ "quarry_10k_merged": [
+  "synth_edapa_quarry_v1_002364.txt",
+  "synth_edapa_quarry_v1_009462.txt"
+ ]
+}

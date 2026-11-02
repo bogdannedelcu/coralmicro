@@ -1,0 +1,189 @@
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1770 (2026-11-02 10:33:06) board 58eb
+>>> print(sentai.tpu.load('/models/iarna_c2f.tflite'))
+
+Model loaded: 336640 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x359dd6b8fe9edb3e
+Inputs: 1
+  in[0] uint8[1,480,640,3] (921600 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.02125563  zero_point=240
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.02687206  zero_point=235
+Arena used: 935 / 8192 KB
+Model name: iarna_c2f
+0
+>>> print(sentai.tpu.load_image("/r/00.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+42
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/01.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/02.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/03.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/04.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/05.jpg"))
+
+ERROR: Failed to read /r/05.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/06.jpg"))
+
+ERROR: Failed to read /r/06.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/07.jpg"))
+
+ERROR: Failed to read /r/07.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/08.jpg"))
+
+ERROR: Failed to read /r/08.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/09.jpg"))
+
+ERROR: Failed to read /r/09.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/10.jpg"))
+
+ERROR: Failed to read /r/10.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/11.jpg"))
+
+ERROR: Failed to read /r/11.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/12.jpg"))
+
+ERROR: Failed to read /r/12.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/13.jpg"))
+
+ERROR: Failed to read /r/13.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/14.jpg"))
+
+ERROR: Failed to read /r/14.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/15.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/16.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]

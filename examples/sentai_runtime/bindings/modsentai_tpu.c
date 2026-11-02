@@ -728,6 +728,39 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 #endif
 
 // ---- module table ----
+
+// sentai.tpu.detect(conf=0.5, iou=0.45, max_dets=50) -> list of (x1, y1, x2, y2, conf, class_id)
+// EXP-s269 (W24-T23): run the firmware's YOLO decode + NMS (sentai_tpu_detect, the same
+// post-processing InferTask uses) on the CURRENT output tensors, i.e. after tpu.invoke() on
+// an input loaded with tpu.load_image().  Lets a host image be scored by the on-board model
+// without the camera, which separates "detector / pipeline" from "display / camera" effects.
+// Boxes are in model-input pixels.  Raises on error (no model / no outputs).
+extern int sentai_tpu_detect(int conf_permil, int iou_permil, int max_dets, int16_t* out_buf, int* out_count);
+static mp_obj_t mod_sentai_tpu_detect(size_t n_args, const mp_obj_t *args) {
+    int conf = (n_args >= 1) ? (int)(mp_obj_get_float(args[0]) * 1000.0f) : 500;
+    int iou  = (n_args >= 2) ? (int)(mp_obj_get_float(args[1]) * 1000.0f) : 450;
+    int maxd = (n_args >= 3) ? mp_obj_get_int(args[2]) : 50;
+    if (maxd < 1) maxd = 1;
+    if (maxd > 64) maxd = 64;
+    static int16_t buf[64 * 6];
+    int count = 0;
+    int rc = sentai_tpu_detect(conf, iou, maxd, buf, &count);
+    if (rc < 0) {
+        mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("tpu.detect failed (%d)"), rc);
+    }
+    mp_obj_list_t* list = MP_OBJ_TO_PTR(mp_obj_new_list(count, NULL));
+    for (int i = 0; i < count; i++) {
+        mp_obj_t items[6] = {
+            mp_obj_new_int(buf[i * 6 + 0]), mp_obj_new_int(buf[i * 6 + 1]),
+            mp_obj_new_int(buf[i * 6 + 2]), mp_obj_new_int(buf[i * 6 + 3]),
+            mp_obj_new_float(buf[i * 6 + 4] / 1000.0f), mp_obj_new_int(buf[i * 6 + 5]),
+        };
+        list->items[i] = mp_obj_new_tuple(6, items);
+    }
+    return MP_OBJ_FROM_PTR(list);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_tpu_detect_obj, 0, 3, mod_sentai_tpu_detect);
+
 static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_tpu) },
     { MP_ROM_QSTR(MP_QSTR_load),        MP_ROM_PTR(&mod_sentai_load_model_obj) },
@@ -740,6 +773,7 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_output_size), MP_ROM_PTR(&mod_sentai_output_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_output),      MP_ROM_PTR(&mod_sentai_get_output_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_dims), MP_ROM_PTR(&mod_sentai_output_dims_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detect), MP_ROM_PTR(&mod_sentai_tpu_detect_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_type), MP_ROM_PTR(&mod_sentai_output_type_obj) },
     { MP_ROM_QSTR(MP_QSTR_row),         MP_ROM_PTR(&mod_sentai_get_row_obj) },
     { MP_ROM_QSTR(MP_QSTR_value),        MP_ROM_PTR(&mod_sentai_get_value_obj) },

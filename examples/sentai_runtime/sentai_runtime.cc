@@ -15,6 +15,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
 #include <cstring>
 #include <vector>
 #include <unistd.h>
@@ -1628,11 +1629,32 @@ extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp);
 // microseconds, hardware timer, not ISR-dependent — same source as
 // sentai.rtos.micros()) and return real milliseconds.
 extern "C" uint32_t vPortGetRunTimeCounterValue(void);
+extern "C" uint8_t* volatile g_sentai_tpu_input_override[4];
 extern "C" int sentai_tpu_invoke_internal(void) {
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  // EXP-s269 (2026-11-02): the plain invoke (tpu.load_image / set_input + tpu.invoke)
+  // never fed the TPU either -- EdgeTpuExecutable reads the EvalTensor's data
+  // pointer, which is not the persistent TfLiteTensor data that load_image fills
+  // (same mechanism as the W24-T16 direct-path fix; fingerprint identical for a
+  // black, a white and a natural image).  Publish every input tensor's persistent
+  // data pointer through g_sentai_tpu_input_override for the duration of the call
+  // unless a caller already set one.
+  auto* interp = coralmicro::g_interpreter;
+  const int n_in = (int)interp->inputs().size();
+  uint8_t* prev[4] = {nullptr, nullptr, nullptr, nullptr};
+  bool set[4] = {false, false, false, false};
+  for (int k = 0; k < n_in && k < 4; ++k) {
+    prev[k] = g_sentai_tpu_input_override[k];
+    if (!prev[k]) {
+      auto* t = interp->input_tensor(k);
+      if (t && t->data.uint8) { g_sentai_tpu_input_override[k] = t->data.uint8; set[k] = true; }
+    }
+  }
   uint32_t t0 = vPortGetRunTimeCounterValue();
-  if (coralmicro::g_interpreter->Invoke() != kTfLiteOk) return -2;
+  TfLiteStatus rc = interp->Invoke();
   uint32_t t1 = vPortGetRunTimeCounterValue();
+  for (int k = 0; k < 4; ++k) if (set[k]) g_sentai_tpu_input_override[k] = prev[k];
+  if (rc != kTfLiteOk) return -2;
   return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
 }
 
@@ -2266,6 +2288,59 @@ extern "C" int sentai_tpu_output_yolo_info(int* layout_out,
     return (info.layout == YoloLayout::kUnknown) ? -2 : 0;
 }
 
+// Headless YOLOv5 p3p4 decode (port of experiments/s236_model_speed_sweep_640x480/
+// host_decode.py, the reference decoder used for every host-side mAP of these models):
+// output k = [1, gh, gw, 5+C] raw logits [tx, ty, tw, th, obj, cls...]; stride =
+// in_h / gh (480/30 = 16 for P4, 480/60 = 8 for P3), one anchor per level of
+// 2*stride px (32 / 16); x = (sig(tx)*2 - 0.5 + gx)*stride, w = (sig(tw)*2)^2*anchor,
+// conf = sig(obj) * sig(best class).  The sigmoid of the dequantised value is a
+// 256-entry table per head (the logits are 8-bit), so the decode costs ~7k table
+// look-ups per frame, no expf in the loop.  Fills g_nms_cand in input pixels,
+// returns the candidate count.
+static int yolo_decode_heads(float conf_thr, int in_h, int in_w) {
+  using namespace coralmicro;
+  (void)in_w;
+  int num_cand = 0;
+  static float lut[256];
+  const int n_out = (int)g_interpreter->outputs().size();
+  for (int k = 0; k < n_out && num_cand < kMaxNmsCandidates; ++k) {
+    const TfLiteTensor* t = g_interpreter->output_tensor(k);
+    if (!t || t->dims->size != 4 || t->dims->data[0] != 1) continue;
+    const int gh = t->dims->data[1], gw = t->dims->data[2], ch = t->dims->data[3];
+    const int C = ch - 5;
+    if (C < 1 || gh <= 0 || gw <= 0) continue;
+    const float stride = (float)in_h / (float)gh;
+    const float anchor = 2.0f * stride;
+    const float scale = t->params.scale;
+    const int zp = t->params.zero_point;
+    const bool is_u8 = (t->type == kTfLiteUInt8);
+    for (int q = 0; q < 256; ++q) {
+      const int raw = is_u8 ? q : (int)(int8_t)(uint8_t)q;
+      lut[q] = 1.0f / (1.0f + expf(-scale * (float)(raw - zp)));
+    }
+    const uint8_t* u = reinterpret_cast<const uint8_t*>(t->data.data);
+    for (int gy = 0; gy < gh && num_cand < kMaxNmsCandidates; ++gy) {
+      for (int gx = 0; gx < gw && num_cand < kMaxNmsCandidates; ++gx) {
+        const uint8_t* p = u + ((size_t)gy * gw + gx) * ch;
+        const float obj = lut[p[4]];
+        float best = -1.0f; int best_c = 0;
+        for (int c = 0; c < C; ++c) {
+          const float v = lut[p[5 + c]];
+          if (v > best) { best = v; best_c = c; }
+        }
+        const float cf = obj * best;
+        if (cf < conf_thr) continue;
+        const float x = (lut[p[0]] * 2.0f - 0.5f + (float)gx) * stride;
+        const float y = (lut[p[1]] * 2.0f - 0.5f + (float)gy) * stride;
+        const float w2 = lut[p[2]] * 2.0f, h2 = lut[p[3]] * 2.0f;
+        const float w = w2 * w2 * anchor, h = h2 * h2 * anchor;
+        g_nms_cand[num_cand++] = {x - w * 0.5f, y - h * 0.5f, x + w * 0.5f, y + h * 0.5f, cf, (int16_t)best_c};
+      }
+    }
+  }
+  return num_cand;
+}
+
 extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
                                  int max_dets,
                                  int16_t* out_buf, int* out_count) {
@@ -2274,17 +2349,19 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   if (!g_tpu_ready || !g_interpreter) return -1;
 
   auto* output = g_interpreter->output_tensor(0);
-  if (!output || output->dims->size != 3) return -2;
+  if (!output) return -2;
 
-  YoloInfo info = yolo_infer_info(output);
-  if (info.layout == YoloLayout::kUnknown) return -3;
-
-  auto* input = g_interpreter->input_tensor(0);
-  int in_h = input->dims->data[1];
-  int in_w = input->dims->data[2];
-
-  float scale = output->params.scale;
-  int zp = output->params.zero_point;
+  // Model input geometry = the LARGEST input tensor: the dual-input YUV420 models
+  // carry UV [1,240,320,2] at index 0 and Y [1,480,640,1] at index 1.
+  int in_h = 0, in_w = 0;
+  for (size_t k = 0; k < g_interpreter->inputs().size(); ++k) {
+    auto* t = g_interpreter->input_tensor(k);
+    if (t && t->dims->size == 4) {
+      if (t->dims->data[1] > in_h) in_h = t->dims->data[1];
+      if (t->dims->data[2] > in_w) in_w = t->dims->data[2];
+    }
+  }
+  if (in_h <= 0 || in_w <= 0) return -2;
 
   float conf_thr = conf_permil / 1000.0f;
   float iou_thr  = iou_permil  / 1000.0f;
@@ -2292,10 +2369,29 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   int num_cand = 0;
   float max_coord = 0.0f;
 
-  const int N = info.num_anchors;
-  const int C = info.num_classes;
+  YoloInfo info = {YoloLayout::kUnknown, 0, 0};
+  float scale = 0.0f;
+  int zp = 0;
+  int N = 0, C = 0;
+  // Headless exports (every iarna / yuv420 model on the card since 2026-04): two raw
+  // grid heads [1,gh,gw,5+C] instead of one decoded [1,N,5+C] tensor.  Until build
+  // 1767 this function returned -2 for them and the pipeline published 0 detections
+  // for every frame (found by EXP-s269, 2026-11-02).
+  const bool heads = (output->dims->size == 4);
+  if (!heads) {
+    if (output->dims->size != 3) return -2;
+    info = yolo_infer_info(output);
+    if (info.layout == YoloLayout::kUnknown) return -3;
+    scale = output->params.scale;
+    zp = output->params.zero_point;
+    N = info.num_anchors;
+    C = info.num_classes;
+  }
 
-  if (info.layout == YoloLayout::kV5Like) {
+  if (heads) {
+    num_cand = yolo_decode_heads(conf_thr, in_h, in_w);
+    max_coord = (float)in_w;   // candidates are already in input pixels
+  } else if (info.layout == YoloLayout::kV5Like) {
     // [1, N, 5+C] — rows contiguous in memory.  Row layout:
     //   bytes 0..3   = cx, cy, w, h
     //   byte 4       = objectness

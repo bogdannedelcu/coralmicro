@@ -1,0 +1,909 @@
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1766 (2026-11-02 08:23:29) board 58eb
+>>> print(sentai.camera.yuv_mode(1))
+
+1
+>>> print(sentai.camera.init(1, 30))
+
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE4 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 12 us after 0 step(s) (T=33434 us)
+[CAM0] W 0x3400=0x05 (0)
+[CAM0] W 0x3401=0x21 (0)
+[CAM0] W 0x3402=0x04 (0)
+[CAM0] W 0x3403=0x00 (0)
+[CAM0] W 0x3404=0x05 (0)
+[CAM0] W 0x3405=0x42 (0)
+[CAM0] W 0x3406=0x01 (0)
+[CAM0] W 0x5381=0x23 (0)
+[CAM0] W 0x5382=0x52 (0)
+[CAM0] W 0x5383=0x11 (0)
+[CAM0] W 0x5384=0x03 (0)
+[CAM0] W 0x5385=0x95 (0)
+[CAM0] W 0x5386=0x98 (0)
+[CAM0] W 0x5387=0x9F (0)
+[CAM0] W 0x5388=0xA6 (0)
+[CAM0] W 0x5389=0x0A (0)
+[CAM0] W 0x538A=0x00 (0)
+[CAM0] W 0x538B=0x98 (0)
+[CAM0] W 0x5481=0x0D (0)
+[CAM0] W 0x5482=0x2B (0)
+[CAM0] W 0x5483=0x40 (0)
+[CAM0] W 0x5484=0x5E (0)
+[CAM0] W 0x5485=0x69 (0)
+[CAM0] W 0x5486=0x75 (0)
+[CAM0] W 0x5487=0x7B (0)
+[CAM0] W 0x5488=0x7F (0)
+[CAM0] W 0x5489=0x8E (0)
+[CAM0] W 0x548A=0x97 (0)
+[CAM0] W 0x548B=0x9E (0)
+[CAM0] W 0x548C=0xAC (0)
+[CAM0] W 0x548D=0xBF (0)
+[CAM0] W 0x548E=0xD2 (0)
+[CAM0] W 0x548F=0xE1 (0)
+[CAM0] W 0x5490=0x1D (0)
+[CAM0] W 0x5580=0x02 (0)
+[CAM0] W 0x5583=0x40 (0)
+[CAM0] W 0x5584=0x40 (0)
+[CAM0] W 0x5588=0x41 (0)
+[CAM0] W 0x5589=0x10 (0)
+[CAM0] W 0x558A=0x00 (0)
+[CAM0] W 0x558B=0xF8 (0)
+[CAM0] W 0x5800=0x23 (0)
+[CAM0] W 0x5801=0x15 (0)
+[CAM0] W 0x5802=0x0F (0)
+[CAM0] W 0x5803=0x10 (0)
+[CAM0] W 0x5804=0x12 (0)
+[CAM0] W 0x5805=0x26 (0)
+[CAM0] W 0x5806=0x0C (0)
+[CAM0] W 0x5807=0x07 (0)
+[CAM0] W 0x5808=0x03 (0)
+[CAM0] W 0x5809=0x04 (0)
+[CAM0] W 0x580A=0x07 (0)
+[CAM0] W 0x580B=0x0E (0)
+[CAM0] W 0x580C=0x08 (0)
+[CAM0] W 0x580D=0x01 (0)
+[CAM0] W 0x580E=0x01 (0)
+[CAM0] W 0x580F=0x00 (0)
+[CAM0] W 0x5810=0x02 (0)
+[CAM0] W 0x5811=0x09 (0)
+[CAM0] W 0x5812=0x08 (0)
+[CAM0] W 0x5813=0x02 (0)
+[CAM0] W 0x5814=0x01 (0)
+[CAM0] W 0x5815=0x00 (0)
+[CAM0] W 0x5816=0x02 (0)
+[CAM0] W 0x5817=0x07 (0)
+[CAM0] W 0x5818=0x0D (0)
+[CAM0] W 0x5819=0x09 (0)
+[CAM0] W 0x581A=0x07 (0)
+[CAM0] W 0x581B=0x09 (0)
+[CAM0] W 0x581C=0x0B (0)
+[CAM0] W 0x581D=0x0F (0)
+[CAM0] W 0x581E=0x29 (0)
+[CAM0] W 0x581F=0x19 (0)
+[CAM0] W 0x5820=0x13 (0)
+[CAM0] W 0x5821=0x14 (0)
+[CAM0] W 0x5822=0x17 (0)
+[CAM0] W 0x5823=0x29 (0)
+[CAM0] W 0x5824=0x25 (0)
+[CAM0] W 0x5825=0x26 (0)
+[CAM0] W 0x5826=0x0A (0)
+[CAM0] W 0x5827=0x16 (0)
+[CAM0] W 0x5828=0x83 (0)
+[CAM0] W 0x5829=0x15 (0)
+[CAM0] W 0x582A=0x24 (0)
+[CAM0] W 0x582B=0x42 (0)
+[CAM0] W 0x582C=0x23 (0)
+[CAM0] W 0x582D=0x13 (0)
+[CAM0] W 0x582E=0x04 (0)
+[CAM0] W 0x582F=0x42 (0)
+[CAM0] W 0x5830=0x41 (0)
+[CAM0] W 0x5831=0x31 (0)
+[CAM0] W 0x5832=0x14 (0)
+[CAM0] W 0x5833=0x17 (0)
+[CAM0] W 0x5834=0x36 (0)
+[CAM0] W 0x5835=0x34 (0)
+[CAM0] W 0x5836=0x33 (0)
+[CAM0] W 0x5837=0x16 (0)
+[CAM0] W 0x5838=0x24 (0)
+[CAM0] W 0x5839=0x35 (0)
+[CAM0] W 0x583A=0x26 (0)
+[CAM0] W 0x583B=0x38 (0)
+[CAM0] W 0x583C=0x22 (0)
+[CAM0] W 0x583D=0xCE (0)
+[cam] cam0: 103 registers applied from /cam/cam0.regs
+[CAM1] W 0x3400=0x04 (0)
+[CAM1] W 0x3401=0x5E (0)
+[CAM1] W 0x3402=0x04 (0)
+[CAM1] W 0x3403=0x00 (0)
+[CAM1] W 0x3404=0x04 (0)
+[CAM1] W 0x3405=0xCB (0)
+[CAM1] W 0x3406=0x01 (0)
+[CAM1] W 0x5381=0x2C (0)
+[CAM1] W 0x5382=0x4A (0)
+[CAM1] W 0x5383=0x06 (0)
+[CAM1] W 0x5384=0x2A (0)
+[CAM1] W 0x5385=0x5F (0)
+[CAM1] W 0x5386=0x86 (0)
+[CAM1] W 0x5387=0x99 (0)
+[CAM1] W 0x5388=0x87 (0)
+[CAM1] W 0x5389=0x0D (0)
+[CAM1] W 0x538A=0x01 (0)
+[CAM1] W 0x538B=0x98 (0)
+[CAM1] W 0x5481=0x0A (0)
+[CAM1] W 0x5482=0x24 (0)
+[CAM1] W 0x5483=0x38 (0)
+[CAM1] W 0x5484=0x5C (0)
+[CAM1] W 0x5485=0x62 (0)
+[CAM1] W 0x5486=0x62 (0)
+[CAM1] W 0x5487=0x69 (0)
+[CAM1] W 0x5488=0x80 (0)
+[CAM1] W 0x5489=0x91 (0)
+[CAM1] W 0x548A=0x91 (0)
+[CAM1] W 0x548B=0x91 (0)
+[CAM1] W 0x548C=0x96 (0)
+[CAM1] W 0x548D=0xB3 (0)
+[CAM1] W 0x548E=0xBA (0)
+[CAM1] W 0x548F=0xCD (0)
+[CAM1] W 0x5490=0x1D (0)
+[CAM1] W 0x5580=0x02 (0)
+[CAM1] W 0x5583=0x40 (0)
+[CAM1] W 0x5584=0x40 (0)
+[CAM1] W 0x5588=0x41 (0)
+[CAM1] W 0x5589=0x10 (0)
+[CAM1] W 0x558A=0x00 (0)
+[CAM1] W 0x558B=0xF8 (0)
+[CAM1] W 0x5800=0x25 (0)
+[CAM1] W 0x5801=0x15 (0)
+[CAM1] W 0x5802=0x10 (0)
+[CAM1] W 0x5803=0x10 (0)
+[CAM1] W 0x5804=0x13 (0)
+[CAM1] W 0x5805=0x27 (0)
+[CAM1] W 0x5806=0x0C (0)
+[CAM1] W 0x5807=0x08 (0)
+[CAM1] W 0x5808=0x05 (0)
+[CAM1] W 0x5809=0x06 (0)
+[CAM1] W 0x580A=0x0A (0)
+[CAM1] W 0x580B=0x0E (0)
+[CAM1] W 0x580C=0x08 (0)
+[CAM1] W 0x580D=0x01 (0)
+[CAM1] W 0x580E=0x00 (0)
+[CAM1] W 0x580F=0x00 (0)
+[CAM1] W 0x5810=0x04 (0)
+[CAM1] W 0x5811=0x09 (0)
+[CAM1] W 0x5812=0x06 (0)
+[CAM1] W 0x5813=0x02 (0)
+[CAM1] W 0x5814=0x00 (0)
+[CAM1] W 0x5815=0x00 (0)
+[CAM1] W 0x5816=0x03 (0)
+[CAM1] W 0x5817=0x08 (0)
+[CAM1] W 0x5818=0x0C (0)
+[CAM1] W 0x5819=0x09 (0)
+[CAM1] W 0x581A=0x05 (0)
+[CAM1] W 0x581B=0x07 (0)
+[CAM1] W 0x581C=0x0A (0)
+[CAM1] W 0x581D=0x0F (0)
+[CAM1] W 0x581E=0x29 (0)
+[CAM1] W 0x581F=0x18 (0)
+[CAM1] W 0x5820=0x12 (0)
+[CAM1] W 0x5821=0x12 (0)
+[CAM1] W 0x5822=0x16 (0)
+[CAM1] W 0x5823=0x29 (0)
+[CAM1] W 0x5824=0x55 (0)
+[CAM1] W 0x5825=0x37 (0)
+[CAM1] W 0x5826=0x07 (0)
+[CAM1] W 0x5827=0x25 (0)
+[CAM1] W 0x5828=0x83 (0)
+[CAM1] W 0x5829=0x26 (0)
+[CAM1] W 0x582A=0x23 (0)
+[CAM1] W 0x582B=0x32 (0)
+[CAM1] W 0x582C=0x13 (0)
+[CAM1] W 0x582D=0x24 (0)
+[CAM1] W 0x582E=0x26 (0)
+[CAM1] W 0x582F=0x43 (0)
+[CAM1] W 0x5830=0x23 (0)
+[CAM1] W 0x5831=0x12 (0)
+[CAM1] W 0x5832=0x24 (0)
+[CAM1] W 0x5833=0x37 (0)
+[CAM1] W 0x5834=0x25 (0)
+[CAM1] W 0x5835=0x33 (0)
+[CAM1] W 0x5836=0x13 (0)
+[CAM1] W 0x5837=0x36 (0)
+[CAM1] W 0x5838=0x45 (0)
+[CAM1] W 0x5839=0x15 (0)
+[CAM1] W 0x583A=0x15 (0)
+[CAM1] W 0x583B=0x18 (0)
+[CAM1] W 0x583C=0x43 (0)
+[CAM1] W 0x583D=0xCE (0)
+[cam] cam1: 103 registers applied from /cam/cam1.regs
+0
+>>> print(sentai.camera.aec_set(0, 28, 20))
+
+[CAM0] W 0x3A0F=0x1C (0)
+[CAM0] W 0x3A10=0x14 (0)
+[CAM0] W 0x3A1B=0x1C (0)
+[CAM0] W 0x3A1E=0x14 (0)
+[CAM0] W 0x3A11=0x5C (0)
+[CAM0] W 0x3A1F=0x00 (0)
+0
+>>> print(sentai.camera.aec_set(1, 28, 20))
+
+[CAM1] W 0x3A0F=0x1C (0)
+[CAM1] W 0x3A10=0x14 (0)
+[CAM1] W 0x3A1B=0x1C (0)
+[CAM1] W 0x3A1E=0x14 (0)
+[CAM1] W 0x3A11=0x5C (0)
+[CAM1] W 0x3A1F=0x00 (0)
+0
+>>> print(sentai.tpu.load('/models/c2f_thick_yuv420_int8_edgetpu.tflite'))
+
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+0
+>>> print(sentai.tpu.num_inputs())
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'module' object has no attribute 'num_inputs'
+>>> print(sentai.pipeline.direct_tensor(1))
+
+1
+>>> print(sentai.pipeline.invokes_per_frame(1))
+
+1
+>>> print(sentai.pipeline.start(0.250, 0.45, 50, False))
+
+0
+>>> print(sentai.camera.select(0))
+
+0
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 140, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 141, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 142, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 20, 143, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 144, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 144, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 168, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 20, 169, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 171, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 172, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 172, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 174, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 197, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 198, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 199, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 200, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 201, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 202, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 226, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 227, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 228, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 229, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 230, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 231, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 255, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 256, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 256, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 258, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 259, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 260, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 284, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 285, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 285, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 286, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 287, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 288, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 312, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 314, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 314, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 315, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 316, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 317, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 341, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 342, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 343, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 344, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 345, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 7, 346, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 369, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 370, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 371, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 372, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 373, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 374, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 398, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 399, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 400, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 7, 401, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 402, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 402, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 426, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 427, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 428, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 429, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 430, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 16, 431, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 455, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 456, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 457, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 458, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 459, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 6, 460, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 484, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 485, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 486, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 487, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 488, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 489, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 512, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 513, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 515, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 6, 516, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 517, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 517, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 541, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 542, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 543, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 544, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 545, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 546, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 571, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 572, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 573, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 574, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 575, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 575, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 600, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 601, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 602, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 603, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 603, 0, 0, 0)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 604, 0, 0, 0)
+>>> print(sentai.camera.select(1))
+
+0
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 644, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 645, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 646, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 648, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 649, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 649, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 673, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 674, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 676, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 676, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 678, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 20, 678, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 702, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 703, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 704, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 705, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 706, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 707, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 731, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 732, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 732, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 733, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 734, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 735, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 760, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 760, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 761, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 762, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 17, 763, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 764, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 788, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 789, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 790, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 16, 790, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 791, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 6, 793, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 816, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 817, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 818, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 819, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 820, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 821, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 845, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 846, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 847, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 848, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 849, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 849, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 873, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 874, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 875, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 876, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 16, 877, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 878, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 902, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 903, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 904, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 905, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 20, 906, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 906, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 930, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 931, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 932, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 933, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 20, 934, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 935, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 959, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 960, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 961, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 962, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 963, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 964, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 988, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 989, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 990, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 991, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 992, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 993, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 1017, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1017, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 1018, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1019, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 8, 1020, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 20, 1021, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1045, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1046, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 6, 1047, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 1048, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 1049, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 1050, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1074, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 1074, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 1075, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1076, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1077, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1078, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 1102, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1103, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 5, 1104, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 15, 1105, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 9, 1105, 0, 0, 1)
+>>> print(sentai.pipeline.get_ex(2000))
+
+([], 20, 10, 1106, 0, 0, 1)
+>>> print(sentai.pipeline.stop())
+
+0

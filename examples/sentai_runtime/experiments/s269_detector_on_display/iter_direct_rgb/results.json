@@ -1,0 +1,142 @@
+{
+ "model": "/models/iarna_c2f.tflite",
+ "conf": 0.25,
+ "images": {
+  "barn_10k_v4_merged__synth_edapa_barn_product_v2_001026": {
+   "n_gt": 4,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "barn_10k_v4_merged__synth_edapa_barn_product_v2_002966": {
+   "n_gt": 8,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "barn_10k_v4_merged__synth_edapa_barn_product_v2_009264": {
+   "n_gt": 6,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "barn_10k_v4_merged__synth_edapa_barn_product_v2_009780": {
+   "n_gt": 10,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "barn_10k_v4_merged__synth_edapa_barn_product_v2_014074": {
+   "n_gt": 15,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_004142": {
+   "n_gt": 9,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_006016": {
+   "n_gt": 8,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_007670": {
+   "n_gt": 15,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_010195": {
+   "n_gt": 9,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_011109": {
+   "n_gt": 14,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_001518": {
+   "n_gt": 10,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_004227": {
+   "n_gt": 14,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_006912": {
+   "n_gt": 7,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_007571": {
+   "n_gt": 3,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_010200": {
+   "n_gt": 10,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "quarry_10k_merged__synth_edapa_quarry_v1_002364": {
+   "n_gt": 15,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  },
+  "quarry_10k_merged__synth_edapa_quarry_v1_009462": {
+   "n_gt": 13,
+   "dets": [],
+   "tp": 0,
+   "fp": 0,
+   "tp50": 0,
+   "fp50": 0
+  }
+ }
+}

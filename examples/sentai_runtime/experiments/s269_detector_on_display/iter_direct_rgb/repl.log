@@ -1,0 +1,635 @@
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1767 (2026-11-02 10:19:08) board 58eb
+>>> print(sentai.tpu.load('/models/iarna_c2f.tflite'))
+
+Model loaded: 336640 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x359dd6b8fe9edb3e
+Inputs: 1
+  in[0] uint8[1,480,640,3] (921600 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.02125563  zero_point=240
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.02687206  zero_point=235
+Arena used: 935 / 8192 KB
+Model name: iarna_c2f
+0
+>>> print(sentai.tpu.load_image("/refs640/barn_10k_v4_merged__synth_edapa_barn_product_v2_001026.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+42
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/barn_10k_v4_merged__synth_edapa_barn_product_v2_002966.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/barn_10k_v4_merged__synth_edapa_barn_product_v2_009264.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/barn_10k_v4_merged__synth_edapa_barn_product_v2_009780.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/barn_10k_v4_merged__synth_edapa_barn_product_v2_014074.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_004142.jpg"))
+
+ERROR: Failed to read /refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_004142.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_006016.jpg"))
+
+ERROR: Failed to read /refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_006016.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_007670.jpg"))
+
+ERROR: Failed to read /refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_007670.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_010195.jpg"))
+
+ERROR: Failed to read /refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_010195.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_011109.jpg"))
+
+ERROR: Failed to read /refs640/bologna_10k_v1_merged_20260913_084034__synth_edapa_bologna_011109.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_001518.jpg"))
+
+ERROR: Failed to read /refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_001518.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_004227.jpg"))
+
+ERROR: Failed to read /refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_004227.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_006912.jpg"))
+
+ERROR: Failed to read /refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_006912.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_007571.jpg"))
+
+ERROR: Failed to read /refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_007571.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_010200.jpg"))
+
+ERROR: Failed to read /refs640/cairo_10k_v1_merged_20260920_141800__synth_edapa_cairo_010200.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/quarry_10k_merged__synth_edapa_quarry_v1_002364.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/refs640/quarry_10k_merged__synth_edapa_quarry_v1_009462.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1767 (2026-11-02 10:19:08) board 58eb
+>>> print(sentai.tpu.load('/models/iarna_c2f.tflite'))
+
+Model loaded: 336640 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x359dd6b8fe9edb3e
+Inputs: 1
+  in[0] uint8[1,480,640,3] (921600 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.02125563  zero_point=240
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.02687206  zero_point=235
+Arena used: 935 / 8192 KB
+Model name: iarna_c2f
+0
+>>> print(sentai.tpu.load_image("/r/00.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+42
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/01.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/02.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/03.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/04.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/05.jpg"))
+
+ERROR: Failed to read /r/05.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/06.jpg"))
+
+ERROR: Failed to read /r/06.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/07.jpg"))
+
+ERROR: Failed to read /r/07.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/08.jpg"))
+
+ERROR: Failed to read /r/08.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/09.jpg"))
+
+ERROR: Failed to read /r/09.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/10.jpg"))
+
+ERROR: Failed to read /r/10.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/11.jpg"))
+
+ERROR: Failed to read /r/11.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/12.jpg"))
+
+ERROR: Failed to read /r/12.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/13.jpg"))
+
+ERROR: Failed to read /r/13.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/14.jpg"))
+
+ERROR: Failed to read /r/14.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/15.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> print(sentai.tpu.load_image("/r/16.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: tpu.detect failed (-2)
+>>> import sentai
+
+>>> print(sentai.version())
+
+SentAI v1.1 build 1769 (2026-11-02 10:24:49) board 58eb
+>>> print(sentai.tpu.load('/models/iarna_c2f.tflite'))
+
+Model loaded: 336640 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x359dd6b8fe9edb3e
+Inputs: 1
+  in[0] uint8[1,480,640,3] (921600 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.02125563  zero_point=240
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.02687206  zero_point=235
+Arena used: 935 / 8192 KB
+Model name: iarna_c2f
+0
+>>> print(sentai.tpu.load_image("/r/00.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+42
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/01.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/02.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/03.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/04.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/05.jpg"))
+
+ERROR: Failed to read /r/05.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/06.jpg"))
+
+ERROR: Failed to read /r/06.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/07.jpg"))
+
+ERROR: Failed to read /r/07.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/08.jpg"))
+
+ERROR: Failed to read /r/08.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/09.jpg"))
+
+ERROR: Failed to read /r/09.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/10.jpg"))
+
+ERROR: Failed to read /r/10.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/11.jpg"))
+
+ERROR: Failed to read /r/11.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/12.jpg"))
+
+ERROR: Failed to read /r/12.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/13.jpg"))
+
+ERROR: Failed to read /r/13.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/14.jpg"))
+
+ERROR: Failed to read /r/14.jpg
+-3
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/15.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]
+>>> print(sentai.tpu.load_image("/r/16.jpg"))
+
+JPEG: 640x480 ch=3 -> tensor 640x480x3
+0
+>>> print(sentai.tpu.invoke())
+
+37
+>>> print(sentai.tpu.detect(0.250, 0.45, 50))
+
+[]

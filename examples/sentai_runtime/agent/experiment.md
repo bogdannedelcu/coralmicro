@@ -164,6 +164,22 @@ on other OV5640 modules.  Folder `experiments/s265_camera_color_calibration/` (`
   camera.load_regs(); read-back verified.  Variants measured on the Kamvas grid (build 1766): auto exposure + tuned AWB gains ΔE00 8.7 / 12.4 = calibration, sensor auto AWB 17.9 / 17.8 → default keeps the gains (103 regs); group-hold batches (first loader) read back fine but left part of the ISP set ineffective → direct writes.  Exposure vs fps checked: AEC cap is in
   lines (980/984 = full frame at every fps); only the 50/60 Hz band steps are VGA30-only.
 
+### 2026-11-02 afternoon — EXP-s269 detector on reference frames shown on the display: 0 recall + two firmware bugs
+- Reference frames with GT from the EDAPA Data Viewer (barn/bologna/cairo/quarry 10k sets), shown on the
+  Kamvas, YUV c2f_thick / RGB iarna_c2f on the board: recall 0 on every frame and variant (full frame,
+  2x crops, grey canvas, AEC target); only a stable FP on the display's power LED.
+- BUG 1 FIXED (build 1769): `sentai_tpu_detect` decoded only single-tensor YOLO exports; all current
+  models are headless p3p4 two-head exports [1,30,40,6]+[1,60,80,6] -> -2 -> the pipeline published 0
+  detections since those models were adopted.  Host decoder (s236/host_decode.py) ported; new
+  `sentai.tpu.detect()` binding.
+- BUG 2 OPEN: `tpu.load_image` + `tpu.invoke` never feeds the TPU (fingerprint identical for black /
+  white / natural; zero-copy on/off; override of the arena pointers in invoke_internal, build 1770);
+  the pipeline direct path does feed it (sensor test patterns -> different fingerprints).  s238 (July)
+  had load_image parity -> W24 regression.  Virtual camera compiled out since W24-T11 -> no on-board
+  camera-independent baseline; BMPs staged under /vb/ for a SENTAI_VIRTUAL_CAMERA=ON build.
+- EDAPA viewer API + dataset survey in memory (reference_edapa_dataset_viewer.md); MSC mode used for
+  the 16 MB BMP upload (`sentai.usb.drive(1)` -> /run/media/.../0000-0001 -> `drive(0)`).
+
 ### Open after this session
 Option B production integration (3-channel H×W/2 stem by weight re-indexing, sensor
 row from init, frame-layout flag for JPEG/flow/markers); W24-T13 instruction loop for
