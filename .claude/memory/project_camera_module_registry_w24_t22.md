@@ -1,6 +1,6 @@
 ---
 name: project_camera_module_registry_w24_t22
-description: "2026-11-02 operator decision: every OV5640 module gets a unique ID and the project keeps a database in the source tree (examples/sentai_runtime/camera_modules/ — IDs, register sets, characterisation); OTP programming blocked by AVDD 2.1 V requirement (board rail fixed 2.8 V)"
+description: "2026-11-02 operator decision: every OV5640 module gets a unique ID and the project keeps a database in the source tree (examples/sentai_runtime/camera_modules/ — IDs, register sets, characterisation); OTP programming analysed (AVDD 2.1 V requirement, rail fixed 2.8 V) and DECLINED by the operator: identity = connector + AWB fingerprint"
 metadata:
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
@@ -14,7 +14,7 @@ modules.json, regs/).  WBS OP-S10-W24-T22.  IDs `SAI-CAM-NNNN` + UUID4, append-o
 SAI-CAM-0001 = board 58eb cam0 (upright, AWB R 1.282 / B 1.314, Kamvas ΔE00 4.5);
 SAI-CAM-0002 = cam1 (rotated 180°, R 1.092 / B 1.198, ΔE00 7.8, RAW G/B crosstalk).
 
-**Why OTP is not programmed yet:** OV5640 datasheet v2.03 §4.11 footnote: AVDD must be 2.1 V ± 5 %
+**Operator decision later the same day: the OTP stays unprogrammed (identity = connector + fingerprint).**  Background: OV5640 datasheet v2.03 §4.11 footnote: AVDD must be 2.1 V ± 5 %
 while programming (Arducam app note says 2.5 V) — reading has no such requirement.  The board's
 AVDD is the MCP16701 LDO2/LDO3 rail `VDD_2V8_CAM1/2` at 2.8 V; firmware has on/off only
 (`sentai_cam_rails_set`).  MCP16701 LDOs are programmable 0.6–3.8 V (25 mV steps) → a

@@ -2912,4 +2912,4 @@ modules: assigned IDs (`SAI-CAM-NNNN` + UUID, append-only), board connector, AWB
 per-module register sets (`regs/`) and colour characterisation (from EXP-s265).  Keep it
 updated whenever a module is calibrated, moved to another connector or replaced.  The modules
 carry no factory ID (OTP all zero) and OTP programming needs AVDD at 2.1 V, which the board
-rail does not provide today — identity is connector + fingerprint until that is solved.
+rail does not provide; the operator decided (2026-11-02) not to program it — identity is connector + fingerprint.

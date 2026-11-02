@@ -24,7 +24,10 @@ is the only link between a physical module, its calibration and the board connec
   (2) + UUID (16) + CRC-8 (1) = 19 of the 27 bytes OmniVision leaves to the user
   (`0x3D00..0x3D04` are reserved by OmniVision; 32 bytes = 256 bits in total).
 
-## OTP status — NOT programmed (hardware constraint, 2026-11-02)
+## OTP status — operator decision 2026-11-02: the OTP stays unprogrammed
+
+Module identity is **connector position + AWB fingerprint** (next section), recorded here.  The
+UUIDs below are registry keys only.  The analysis that led to the decision is kept for the record:
 
 The OV5640 datasheet (v2.03 §4.11, table 4-11 footnote a) requires **AVDD = 2.1 V ± 5 % while
 programming** the OTP ("otherwise there will be reliability issues"; the Arducam application
@@ -80,4 +83,5 @@ exposure/gain measured at tuning time; for production apply everything except
 ## History
 
 - 2026-11-02 — registry created with the two modules on board 58eb (EXP-s265 calibration of
-  2026-11-01); OTP programming deferred (AVDD constraint).
+  2026-11-01); OTP programming analysed (AVDD 2.1 V constraint) and **declined by the operator**:
+  identity = connector + fingerprint, registry keyed by SAI-CAM-NNNN.
