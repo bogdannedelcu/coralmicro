@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "wbs": "OP-S10-W24-T22",
+  "note": "Project database of OV5640 camera modules: assigned IDs, placement, fingerprint, register sets, characterisation. Append-only IDs. See README.md.",
+  "otp_layout_planned": {"first_byte": "0x3D05", "magic": "SA", "uuid_bytes": 16, "crc8": 1, "programmed_on_any_module": false,
+                          "constraint": "AVDD 2.1 V +-5 % (datasheet v2.03) / 2.5 V (Arducam note) during programming; board rail fixed 2.8 V"},
+  "modules": [
+    {
+      "id": "SAI-CAM-0001",
+      "uuid": "0aab8082-1be5-4cef-b565-d6c8bdbc3570",
+      "sensor": "OV5640",
+      "otp": {"programmed": false, "read_2026-11-01": "0x3D00-0x3D1F all zero", "chip_id": "0x5640"},
+      "placement": {"board": "58eb", "connector": "cam0", "bus": 1, "rotation_deg": 0},
+      "fingerprint": {"awb_r": 1.282, "awb_g": 1.0, "awb_b": 1.314, "agc_x": 2.81, "exposure_lines": 886,
+                      "reference": "Kamvas 16 sRGB, grey patches, centre mode", "date": "2026-11-01"},
+      "register_sets": [
+        {"file": "regs/SAI-CAM-0001_kamvas_2026-11-01.json", "reference": "Kamvas 16 (sRGB mode)", "mode": "centre", "regs": 109, "date": "2026-11-01", "production": true},
+        {"file": "regs/SAI-CAM-0001_philips_2026-11-01.json", "reference": "Philips 234E5", "mode": "grid + LENC", "regs": 109, "date": "2026-11-01", "production": false}
+      ],
+      "quality": {"kamvas_centre_de00": 4.5, "kamvas_centre_de00_greys": 3.8, "philips_grid_de76": 8.4, "philips_grid_de00": 5.7},
+      "notes": "Reference module. LENC flattened to +-4 % on both channels (paper diffuser method)."
+    },
+    {
+      "id": "SAI-CAM-0002",
+      "uuid": "ad0a0d03-f20c-4b4a-b3ef-346fd4189762",
+      "sensor": "OV5640",
+      "otp": {"programmed": false, "read_2026-11-01": "0x3D00-0x3D1F all zero", "chip_id": "0x5640"},
+      "placement": {"board": "58eb", "connector": "cam1", "bus": 2, "rotation_deg": 180},
+      "fingerprint": {"awb_r": 1.092, "awb_g": 1.0, "awb_b": 1.198, "agc_x": 3.44, "exposure_lines": 886,
+                      "reference": "Kamvas 16 sRGB, grey patches, centre mode", "date": "2026-11-01"},
+      "register_sets": [
+        {"file": "regs/SAI-CAM-0002_kamvas_2026-11-01.json", "reference": "Kamvas 16 (sRGB mode)", "mode": "centre", "regs": 109, "date": "2026-11-01", "production": true},
+        {"file": "regs/SAI-CAM-0002_philips_2026-11-01.json", "reference": "Philips 234E5", "mode": "grid + LENC", "regs": 109, "date": "2026-11-01", "production": false}
+      ],
+      "quality": {"kamvas_centre_de00": 7.8, "kamvas_centre_de00_greys": 4.4, "philips_grid_de76": 17.4, "philips_grid_de00": 10.7},
+      "notes": "Stock frame purple. RAW-domain G/B crosstalk not correctable in-sensor (OV5640 gamma precedes the CMX); gamma-off diagnostic: 3x3 matrix rms 13.4 -> 2.5. Yellow / moderate red render orange at the frame centre."
+    }
+  ]
+}

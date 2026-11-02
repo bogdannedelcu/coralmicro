@@ -2904,3 +2904,12 @@ Refresh the captures when you:
 The capture commands are in `sim/vendor_patches/README.md`; running
 them is a one-pass copy + diff + status snapshot, then `git commit -m
 "vendor_patches: refresh ..."`.
+
+## Camera module registry (OP-S10-W24-T22, 2026-11-02)
+
+`examples/sentai_runtime/camera_modules/` is the project's database of physical OV5640
+modules: assigned IDs (`SAI-CAM-NNNN` + UUID, append-only), board connector, AWB fingerprint,
+per-module register sets (`regs/`) and colour characterisation (from EXP-s265).  Keep it
+updated whenever a module is calibrated, moved to another connector or replaced.  The modules
+carry no factory ID (OTP all zero) and OTP programming needs AVDD at 2.1 V, which the board
+rail does not provide today — identity is connector + fingerprint until that is solved.
