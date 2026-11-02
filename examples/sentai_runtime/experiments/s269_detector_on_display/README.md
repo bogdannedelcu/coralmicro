@@ -82,3 +82,23 @@ contrast, haze) the model's own recall on the raw 640x480 frames must be measure
 blocked by bug 2 (or by a virtual-camera build).  Scripts: `run_display_eval.py` (display),
 `direct_feed_eval.py` (load_image path), `virtual_feed_eval.py` (virtual camera).
 
+
+## Host baseline (CPU int8, `host_eval.py`, venv-coral312 / ai_edge_litert, conf 0.25, IoU 0.3)
+
+The same architectures as on the board (s238 `host_int8_models/`), fed the raw 640x480 frames
+directly — no display, no camera, reference decoder `s236/host_decode.py`:
+
+| model | barn_10k_v4 (43 GT) | bologna (55) | cairo (44) | quarry (28) | FP total |
+|---|---|---|---|---|---|
+| c2f | 0.26 | 0.09 | 0.27 | 0.11 | 9 |
+| c2f_thick | 0.28 | 0.09 | 0.25 | 0.25 | 4 |
+
+(The YUV420 models in `s241/models_yuv/` are Edge-TPU-compiled and cannot run on the CPU; the
+s238 control image gives 5 detections at conf 0.25 — the July table used a lower threshold.)
+
+**Reading:** even on perfect input the current detectors find only 10–28 % of the EDAPA people
+(they were trained on the cover_v1 / iarna synthetic set, not on EDAPA).  The 0 % through the
+display is therefore the product of a weak model on this domain and the ~0.4x display scale,
+not a sign that the camera chain is broken — it is now live (decoder fixed, pipeline feeds the
+TPU).  For a detector-based tuning metric (T23) the model must first be one that detects these
+frames (an EDAPA-trained export, or frames from the models' own training domain).
