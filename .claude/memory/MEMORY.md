@@ -101,7 +101,7 @@
 - [USB storage-mode architecture](project_usb_mode_switch.md) — .noinit_boot_persist + warm reset; [dedicated lfs_task](project_lfs_task_fix.md); [storage watchdog fix](project_storage_watchdog_fix.md) keeps WDOG1 kicks.
 - [REPL-based diag upload helper](project_upload_diag_repl.md) — chunked when HTTP hangs. CHUNK=48.
 - [Experiment run cadence](feedback_experiment_run_cadence.md) — verbose(1) single then multi.
-- [OV5640 AEC dominance](project_ov5640_aec_dominance.md) — post-capture stretch only; [TODO exposure auto-calc](project_ov5640_exposure_calc_todo.md) SXGA15 underexposed.
+- [OV5640 AEC dominance](project_ov5640_aec_dominance.md) — post-capture stretch only; [exposure vs fps CORRECTED 2026-11-02](project_ov5640_exposure_calc_todo.md) — cap in lines = full frame at every fps; only the 50/60 Hz band steps are VGA30-only.
 - [TPU USB throughput investigation](project_tpu_usb_perf.md) — pipe callback blocks single-pipe.
 - [TPU pipeline 41.4 FPS via OCRAM tensor](project_tpu_pipeline_agressor.md) — SDRAM→OCRAM, yolo_1; [Arena-in-OCRAM SHIPPED](project_arena_in_ocram_done.md) 800KB, +0.95 FPS; [Cale 1 PURE ring buffer](project_cale1_ring_buffer_shipped.md) .tpu_ring 72KB OCRAM, UNTESTED.
 - [RT1176/EdgeTPU reference sources](reference_tpu_pipeline_sources.md) — AN12437, IMXRT1170RM.
