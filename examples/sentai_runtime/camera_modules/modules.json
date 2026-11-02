@@ -52,6 +52,22 @@
           "regs": 109,
           "date": "2026-11-01",
           "production": false
+        },
+        {
+          "file": "regs/SAI-CAM-0001_kamvas45_2026-11-02.json",
+          "reference": "Kamvas 16 sRGB at 45 cm, grid central 70 %, expo(n8=190)+awb+tone on top of the kamvas set",
+          "mode": "grid",
+          "regs": 109,
+          "date": "2026-11-02",
+          "production": false,
+          "based_on": "regs/SAI-CAM-0001_kamvas_2026-11-01.json",
+          "changed_vs_base": 16,
+          "quality": {
+            "grid45_de00_tune_after": 6.4,
+            "grid45_de00_ab_n8_190": 7.8,
+            "old_set_same_conditions": 6.7
+          },
+          "note": "NOT adopted: A/B at equal exposure normalisation (n8 = 190) gives 7.8 vs 6.7 for the kamvas 2026-11-01 set; the 6.4 of the tuning run was within the run-to-run spread (~1 dE00) of this setup"
         }
       ],
       "quality": {

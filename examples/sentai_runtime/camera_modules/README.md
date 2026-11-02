@@ -165,6 +165,18 @@ SAI-CAM-0002 is the yellow → orange shift (RAW G/B crosstalk, s265); SAI-CAM-0
 dark instead.  A re-tune at this distance (all 24 patches at once, exposure normalised) is the
 natural next step if better than ~8 ΔE00 is needed.
 
+## Re-tune at 45 cm (2026-11-02, s265 `iter4_dist45/`) — NOT adopted
+
+`tune_colors.py --stages expo,awb,tone --n8 190` from the production state, grid central 70 %:
+cam0 ΔE00 6.4 (greys 4.3) right after tuning, cam1 9.4 (tone stage over-fitted the noisy
+ramp; expo+awb only 9.1) vs 7.9 / 8.4 for the production sets.  A/B of the new cam0 set
+against the kamvas 2026-11-01 set under identical conditions (reset, set applied, exposure
+normalised to n8 = 190, same grid): **new 7.8 vs old 6.7** → the 6.4 was within the run-to-run
+spread of this setup (≈ 1 ΔE00: display, exposure quantisation, pattern window).  Both
+production sets stay as they were; the kamvas45 set is kept in `regs/` as non-production
+evidence.  Lesson: on this display setup, differences below ~1.5 ΔE00 are not resolvable with a
+single grid measurement; a re-tune needs repeated A/B measurements or a physical chart.
+
 ## Schema of `modules.json`
 
 ```

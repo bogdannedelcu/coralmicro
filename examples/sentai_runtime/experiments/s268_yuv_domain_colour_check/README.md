@@ -71,3 +71,11 @@ scene, frozen exposure) and downloaded in 2 s per camera; whole frames or frame 
 go through USB mass-storage mode (`sentai.usb.drive(1)` → warm reset → the SD card appears as a
 disk on the host) instead.
 
+
+## iter2 (2026-11-02, after the cam0 re-tune attempt — cam0 set later reverted)
+
+Same procedure with the kamvas45 cam0 set then in production (cam1 unchanged): cam0 ΔE00 9.7
+(greys 7.5) at the n8 = 200 normalisation — the set tuned for n8 = 190 clips at 200 (yellow 49
+ΔE76) — cam1 8.4 (greys 4.7), identical to iter1.  Confirms iter1's conclusions (full range,
+byte order, YUV = RGB path) and that the exposure target and the tone curve must be chosen
+together; the cam0 production set was reverted to kamvas 2026-11-01 (see camera_modules/README.md).
