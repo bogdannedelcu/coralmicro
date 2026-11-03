@@ -8,7 +8,7 @@ metadata:
   modified: 2026-11-02T20:41:25.175Z
 ---
 
-New work package OP-S10-W26 opened 2026-11-02 (operator): the drone follows the walking pilot in the horizontal plane at a safe distance. Research (T2) done; design in `ideas/objects_plan/23_pilot_follow_tracking_research.md`, literature memos `23a` (vision) and `23b` (fusion). Operator is training the oblique-view person detector (T1) themselves.
+New work package OP-S10-W26 opened 2026-11-02 (operator): the drone (PX4 autopilot, clarified 2026-11-03; MAVLink via sentai.link) follows the walking pilot in the horizontal plane at a safe distance. Research (T2) done; design in `ideas/objects_plan/23_pilot_follow_tracking_research.md`, literature memos `23a` (vision) and `23b` (fusion). Operator is training the oblique-view person detector (T1) themselves.
 
 Decisions / findings to keep:
 - **One TPU model only** (the detector). No lightweight Siamese/transformer single-object tracker compiles end-to-end for the Edge TPU (template-as-kernel xcorr and attention are dynamic-weight ops; no int8 port exists); a second resident model costs a USB weight reload (~30 ms/MB) plus the W24-T9 switch-wedge risk. Bridge, lock, re-ID and estimator all go on the M7 around the existing SentAI-SORT (`sentai_tracker.cc`).
