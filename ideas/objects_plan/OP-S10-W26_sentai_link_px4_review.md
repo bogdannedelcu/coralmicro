@@ -46,11 +46,11 @@
 | R1 | Attitude (quaternion) + angular rates + local position at ≥ 50 Hz, each stamped with the PX4 `time_boot_ms`/µs | chapter 23 §3: attitude at the frame's exposure time, rate gating |
 | R2 | Clock sync: `TIMESYNC` exchange, offset PX4 clock ↔ GPT1 µs (`g_cam_buf_ts_us` already stamps every camera buffer) | replaces STROBE |
 | R3 | Time-indexed pose ring in C (128 entries at 100 Hz ≈ 1.3 s) with `pose_at(t_us)` interpolation | estimator input (memo 23b §8.4) |
-| R4 | GLOBAL_POSITION_INT + HOME/GPS_GLOBAL_ORIGIN decode | lat/lon ↔ local frame for FOLLOW_TARGET and the pilot coordinate |
+| R4 | GLOBAL_POSITION_INT + HOME/GPS_GLOBAL_ORIGIN decode, plus `DISTANCE_SENSOR` / `dist_bottom` if a rangefinder exists | lat/lon ↔ local frame for FOLLOW_TARGET; height above ground for the ground-plane projection |
 | R5 | TX `FOLLOW_TARGET` at 10–20 Hz from C | T0 baseline (PX4 Follow Me on our estimate) and the first flying demo |
 | R6 | TX `SET_POSITION_TARGET_LOCAL_NED` with velocity + acceleration feed-forward + yaw/yaw-rate at 20–50 Hz **from a C task** (Offboard keep-alive ≥ 2 Hz), `DO_SET_MODE` Offboard, arm | controller (chapter 23 §5) |
 | R7 | Auto heartbeat task (1 Hz) and peer tracking: PX4 sysid/compid, mode, armed, last-seen time | Offboard entry and link-loss detection |
-| R8 | RX of the pilot coordinate: phone → QGC `FOLLOW_TARGET` reaches PX4; the board sees it only if PX4 forwards that link (`MAV_x_FORWARD`) or the phone link terminates on the board | estimator GNSS measurement |
+| R8 | ~~RX of the pilot coordinate~~ — dropped: vision only (operator 2026-11-03, chapter 23 §0). `MAV_1_FORWARD` stays useful only for GCS diagnostics. | — |
 | R9 | `COMMAND_ACK` handling, `MESSAGE_INTERVAL` requests at init | deterministic stream rates, no silent command failures |
 | R10 | Baud ≥ 460 800 (see §3.1) | bandwidth |
 | R11 | `NAMED_VALUE_FLOAT` / `DEBUG_VECT` TX for estimator scalars | ulog post-mortem with FC-aligned time |
