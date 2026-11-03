@@ -112,6 +112,8 @@ The drone for this work package runs **PX4**, not the Crazyflie stack; the board
 | **Safety** (geofence `GF_*`, RC-loss / datalink-loss failsafes, RTL, `MAV_CMD_DO_SET_MODE`) | Max distance from home and from take-off as a geofence; all abort paths already exist on the FC. | PX4 collision prevention (`CP_DIST`, `OBSTACLE_DISTANCE`) acts only in manual Position mode, not in Offboard, so the minimum-distance CBF stays on our side. |
 | **ulog + SITL** (`pyulog`; PX4 SITL with Gazebo; `DEBUG_VECT`/`NAMED_VALUE_FLOAT` injection) | Post-mortem scoring with FC-aligned timestamps; our estimator scalars logged into the same ulog. T7's walking actor + a host-side phone emulator sending `FOLLOW_TARGET` over MAVLink (anti-cheat rule unchanged). | — |
 
+**STROBE dropped (operator 2026-11-03: no free wires)** — time alignment is `TIMESYNC` + GPT1 frame stamps only. The link itself is reviewed in `OP-S10-W26_sentai_link_px4_review.md` (tasks T12–T17: bench, C dispatcher + pose ring, clock sync, Offboard TX, safety glue, docs).
+
 Net effect on the task list: T3 becomes "MAVLink `TIMESYNC` + attitude/rate streams interpolated to the frame exposure" (and optionally the STROBE capture wire); T8's outer loop targets Offboard `TRAJECTORY_SETPOINT`; a new **T0 baseline** = PX4 Follow Me with the phone's GNSS only, scored with the same metrics, so every later layer is measured against it; T6 gains an A/B against the PX4 Vision Target Estimator in SITL. What stays ours: the single-target lock + bridge + re-acquisition (§4), the on-board estimator with range/bearing split and attitude-rate gating, the heading/line-of-sight standoff blend, and the FOV barrier.
 
 ## 9. Open gaps found in the literature (candidate thesis contributions)

@@ -1052,7 +1052,13 @@ OP — ObjectsPlan thesis
 │        │    ├── OP-S10-W26-T8 — Controller: LQR + disturbance observer + CBF (d_min, FOV retention) over PX4 Offboard TRAJECTORY_SETPOINT (SITL first); MPC_TILTMAX_AIR / MPC_JERK_MAX as the pitch-swing levers; standoff heading vs line-of-sight A/B; brake-manoeuvre test of the pitch-swing budget ⬜ TODO
 │        │    ├── OP-S10-W26-T9 — Residual RL policy (small MLP, AIfES on M7, bounded ±30 % of the LQR command) ⬜ TODO
 │        │    ├── OP-S10-W26-T10 — Two-tilt camera alternation for vertical FOV coverage (W24 scheduler) + cf2 max-pitch limit ⬜ TODO
-│        │    └── OP-S10-W26-T11 — Outdoor hardware walk with phone GNSS and RTK post-mortem truth ⬜ TODO
+│        │    ├── OP-S10-W26-T11 — Outdoor hardware walk with phone GNSS and RTK post-mortem truth ⬜ TODO
+│        │    ├── OP-S10-W26-T12 — PX4 bench and wiring: TELEM2 ↔ LPUART6 (deck pads), SER_TEL2_BAUD 921600, MAV_1_* params, Crazyflie auto-init off on this vehicle; EXP-s270 ARM link ping with 0 RX drops under pipeline load ⬜ TODO (review: ideas/objects_plan/OP-S10-W26_sentai_link_px4_review.md)
+│        │    ├── OP-S10-W26-T13 — sentai.link core on ARM: C RX dispatcher (no per-message MicroPython), time-stamped pose ring + pose_at(t_us), peer state, auto heartbeat, MESSAGE_INTERVAL at init, real stats(), SERR_LINK_RX_* logging, crazy exclusivity, RX ring/priority fix ⬜ TODO
+│        │    ├── OP-S10-W26-T14 — Clock sync: TIMESYNC client (GPT1 µs ↔ PX4 clock), camera frame stamps on the PX4 clock via g_cam_buf_ts_us; EXP-s271 offset jitter + pose latency (STROBE dropped: no free wires, operator 2026-11-03) ⬜ TODO
+│        │    ├── OP-S10-W26-T15 — Offboard TX in C: port cmd_move/pose/arm/mode from the SIM bridge, 50 Hz setpoint task (SET_POSITION_TARGET_LOCAL_NED vel+accel+yaw), FOLLOW_TARGET helper for T0, NAMED_VALUE_FLOAT for ulog; sentai.servo PX4 backend functional on hardware ⬜ TODO
+│        │    ├── OP-S10-W26-T16 — Safety glue: heartbeat-age watchdog → sentai.safety LINK_LOST → setpoints stop ≤ 200 ms; PX4 COM_OBL_RC_ACT / COM_OF_LOSS_T / geofence tested by pulling the UART ⬜ TODO
+│        │    └── OP-S10-W26-T17 — Docs + parity: SENTAI_API.md link section, appendix 13 update, SIM-only functions marked, shared dispatcher refactor planned with W24-T21 ⬜ TODO
 │        └── OP-S10-W23-T10 — Optional: flip-free phase measurement from the OV5640 STROBE pads (GPT capture); CSI-wedge recovery experiments if F16 ever recurs ⚪ OPTIONAL (2026-10-31, no longer needed for safety)
 │            EXP-s251 iter6: software genlock (one-frame VTS tweak) brings
 │            the sensors to phi = 4 us -> ratio(1,1) with drain=0/dirty=0
