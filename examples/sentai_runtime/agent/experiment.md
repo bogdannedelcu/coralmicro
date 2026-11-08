@@ -7210,3 +7210,4 @@ silences printf so the board looks wedged (echoes, evaluates nothing);
 there silently writes to host rootfs, not the board. (3) Recovered the board from a
 full power-down (a prior desc_cache wedge) — a physical replug is the only reliable
 POR; see memory `reference_board_usb_wedge_needs_physical_por`.
+- 2026-11-08 — **OP-S10-W24-T22 / EXP-s265 iter5**: colour sets re-tuned for the Philips 234E5 landscape monitor rig (centre mode, expo+tone_centre+awb): cam0 ΔE76 centre 7.0, cam1 12.2 after reset with the tuning exposure frozen; default upload (auto exposure) clips → `--keep-exposure` for this rig. Stale ramp-PNG bug fixed in `stage_tone_centre`. Same day: Unreal Bologna on one monitor (plugin `SplitScreen` key, `run_bologna_single.sh`), Paris demo from the colleague built on Linux (upstream AirSim c2703d0 + ue58 patch + glibc shim, `run_paris_single.sh`), SentAI camera sees both games.

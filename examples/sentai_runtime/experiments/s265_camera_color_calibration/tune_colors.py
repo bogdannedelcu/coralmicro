@@ -315,12 +315,14 @@ class Tuner:
         ramp = [{'name': n, 'srgb': list(rgb), 'rect': self.centre_rect} for n, rgb in RAMP]
         self.patches = ramp
         for p in ramp:                                     # PNGs for the ramp greys
+            # always regenerated: a cached PNG from another display / board position draws the
+            # patch at the OLD centre (iter5: stale Kamvas ramp PNGs put g238 at the frame edge
+            # and tripped the visibility guard)
             png = os.path.join(self.centre_dir, p['name'].replace(' ', '_') + '.png')
-            if not os.path.exists(png):
-                img = Image.new('RGB', (1920, 1080), (118, 118, 118))
-                img.paste(Image.new('RGB', (self.centre_rect[2], self.centre_rect[3]), tuple(p['srgb'])),
-                          (self.centre_rect[0], self.centre_rect[1]))
-                img.save(png)
+            img = Image.new('RGB', (1920, 1080), (118, 118, 118))
+            img.paste(Image.new('RGB', (self.centre_rect[2], self.centre_rect[3]), tuple(p['srgb'])),
+                      (self.centre_rect[0], self.centre_rect[1]))
+            img.save(png)
         cur = np.array([self.read(r) for r in GAMMA_REGS], float)
         self.log(ev='tone_centre_start', gamma=cur.tolist())
         try:

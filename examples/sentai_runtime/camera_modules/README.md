@@ -177,6 +177,18 @@ production sets stay as they were; the kamvas45 set is kept in `regs/` as non-pr
 evidence.  Lesson: on this display setup, differences below ~1.5 ΔE00 are not resolvable with a
 single grid measurement; a re-tune needs repeated A/B measurements or a physical chart.
 
+## Philips 234E5 landscape rig (2026-11-08, s265 `iter5_philips_landscape/`) — PRODUCTION
+
+One monitor (HDMI-3, 1920x1080 landscape) shows the Unreal game; both cameras look down at it.
+Centre-mode re-tune (expo + tone_centre + awb) on top of the kamvas sets → `regs/SAI-CAM-000N_philipsL_2026-11-08.json`
+(19 registers changed each), registered as production.  **Uploaded with `make_regs.py --upload --keep-exposure`**:
+with the AEC/AGC freeze dropped, auto exposure settles at 3.3–3.5x on this monitor and clips the bright
+patches (centre ΔE76 24.0 / 15.8 after reset); with the tuning exposure frozen the same sets measure
+centre ΔE76 **7.0 / 12.2**, grid ΔE00 7.6 / 10.1 (`out/measure_philipsL_frozen/`, `out/compare_philipsL_frozen.png`).
+The frozen exposure is right for this rig only (constant monitor brightness); for flight the AEC must
+run, so the auto-exposure variant needs a lower AEC target (W24-T23).  When the Kamvas rig returns,
+re-run `make_regs.py --upload` after switching the production flag back to the kamvas sets.
+
 ## Schema of `modules.json`
 
 ```
@@ -191,6 +203,7 @@ single grid measurement; a re-tune needs repeated A/B measurements or a physical
 
 ## History
 
+- 2026-11-08 — Philips landscape rig: `philipsL` sets tuned in centre mode and made production, uploaded with the tuning exposure frozen (auto exposure clips on this monitor).
 - 2026-11-02 — registry created with the two modules on board 58eb (EXP-s265 calibration of
   2026-11-01); OTP programming analysed (AVDD 2.1 V constraint) and **declined by the operator**:
   identity = connector + fingerprint, registry keyed by SAI-CAM-NNNN.

@@ -43,7 +43,7 @@
           "mode": "centre",
           "regs": 109,
           "date": "2026-11-01",
-          "production": true
+          "production": false
         },
         {
           "file": "regs/SAI-CAM-0001_philips_2026-11-01.json",
@@ -68,6 +68,22 @@
             "old_set_same_conditions": 6.7
           },
           "note": "NOT adopted: A/B at equal exposure normalisation (n8 = 190) gives 7.8 vs 6.7 for the kamvas 2026-11-01 set; the 6.4 of the tuning run was within the run-to-run spread (~1 dE00) of this setup"
+        },
+        {
+          "file": "regs/SAI-CAM-0001_philipsL_2026-11-08.json",
+          "reference": "Philips 234E5 landscape on HDMI-3, board above the monitor, centre mode (expo + tone_centre + awb on top of the kamvas set)",
+          "mode": "centre",
+          "regs": 109,
+          "date": "2026-11-08",
+          "production": true,
+          "based_on": "regs/SAI-CAM-0001_kamvas_2026-11-01.json",
+          "changed_vs_base": 19,
+          "quality": {
+            "de76_centre_cam0": 8.3,
+            "greys_cam0": 3.8,
+            "de76_centre_cam1": 13.5,
+            "greys_cam1": 3.9
+          }
         }
       ],
       "quality": {
@@ -109,7 +125,7 @@
           "mode": "centre",
           "regs": 109,
           "date": "2026-11-01",
-          "production": true
+          "production": false
         },
         {
           "file": "regs/SAI-CAM-0002_philips_2026-11-01.json",
@@ -118,6 +134,22 @@
           "regs": 109,
           "date": "2026-11-01",
           "production": false
+        },
+        {
+          "file": "regs/SAI-CAM-0002_philipsL_2026-11-08.json",
+          "reference": "Philips 234E5 landscape on HDMI-3, board above the monitor, centre mode (expo + tone_centre + awb on top of the kamvas set)",
+          "mode": "centre",
+          "regs": 109,
+          "date": "2026-11-08",
+          "production": true,
+          "based_on": "regs/SAI-CAM-0002_kamvas_2026-11-01.json",
+          "changed_vs_base": 19,
+          "quality": {
+            "de76_centre_cam0": 8.3,
+            "greys_cam0": 3.8,
+            "de76_centre_cam1": 13.5,
+            "greys_cam1": 3.9
+          }
         }
       ],
       "quality": {

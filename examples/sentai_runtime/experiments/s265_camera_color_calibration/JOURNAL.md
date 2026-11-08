@@ -677,3 +677,18 @@ Then `sentai.sys.reset()` (board back in 5 s), `camera.init()`, stock measuremen
 The saved set reproduces the tuned state on a cold boot (cam0 exactly, cam1 within its
 measurement spread).  Apply order in the JSON is the dict order; no group write was needed
 for a static apply.  This is the artefact a tuning script for other modules has to produce.
+
+
+## iter5_philips_landscape — one monitor (Philips 234E5, landscape), both cameras looking down (2026-11-08)
+
+The rig changed: a single 1920x1080 monitor on HDMI-3 showing the Unreal game, both cameras above it.
+`locate.py`: cam0 sees x 0–1522, cam1 x 265–1875, common rect 265,38,1257,1042, residual < 1 px.
+Centre-mode tune per camera (`expo,tone_centre,awb --centre --avg 2`) on top of the kamvas production
+sets: cam0 ΔE76 11.2 → 8.3 (greys 3.8), cam1 15.1 → 13.5 (greys 3.9).  First attempt aborted by the
+visibility guard: `stage_tone_centre` only created the ramp PNGs `if not os.path.exists`, so the
+Kamvas-session files (patch at 1395,383) were shown instead of the new centre (626,504) — fixed, always
+regenerated.  Production upload with the default (AEC freeze dropped) measured centre 24.0 / 15.8 after
+a reset: auto exposure on this bright monitor settles at AGC 3.3–3.5x where neutral 8 reads 253–255, the
+same clipping the `expo` stage started from.  `--keep-exposure` upload: centre 7.0 / 12.2, grid ΔE00
+7.6 / 10.1 (`camera_modules/out/compare_philipsL_frozen.png`).  Kept frozen for this rig; a lower AEC
+target is the auto-exposure alternative (W24-T23).

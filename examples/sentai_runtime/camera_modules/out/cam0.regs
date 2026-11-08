@@ -1,12 +1,18 @@
-# SAI-CAM-0001 on 58eb/cam0 — Kamvas 16 (sRGB mode) (2026-11-01), exported 2026-11-02 by make_regs.py
-# AEC/AGC freeze dropped (auto exposure); AWB manual gains kept
-3400 05
-3401 21
+# SAI-CAM-0001 on 58eb/cam0 — Philips 234E5 landscape on HDMI-3, board above the monitor, centre mode (expo + tone_centre + awb on top of the kamvas set) (2026-11-08), exported 2026-11-08 by make_regs.py
+# AEC/AGC FROZEN at the tuning exposure (diagnostic only); AWB manual gains kept
+3400 06
+3401 03
 3402 04
 3403 00
 3404 05
-3405 42
+3405 1B
 3406 01
+3500 00
+3501 37
+3502 60
+3503 03
+350A 00
+350B 1A
 5381 23
 5382 52
 5383 11
@@ -18,21 +24,21 @@
 5389 0A
 538A 00
 538B 98
-5481 0D
-5482 2B
-5483 40
-5484 5E
-5485 69
-5486 75
-5487 7B
-5488 7F
-5489 8E
-548A 97
-548B 9E
-548C AC
-548D BF
-548E D2
-548F E1
+5481 0A
+5482 35
+5483 49
+5484 67
+5485 70
+5486 7F
+5487 84
+5488 87
+5489 95
+548A A0
+548B A6
+548C BA
+548D CD
+548E DE
+548F F3
 5490 1D
 5580 02
 5583 40
