@@ -20,3 +20,9 @@ target_link_libraries(sdcard_test
     libs_base-m7_freertos
     libs_sdcard_freertos
 )
+
+# OFF by default: a card that does not mount as FAT32 is left untouched.
+option(SDCARD_TEST_FORMAT "sdcard_test formats an unmountable card as FAT32 (erases it)" OFF)
+if(SDCARD_TEST_FORMAT)
+    target_compile_definitions(sdcard_test PRIVATE SDCARD_TEST_FORMAT_IF_MOUNT_FAILS=1)
+endif()

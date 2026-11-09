@@ -34,8 +34,13 @@ namespace coralmicro {
 namespace {
 
 // A card that does not mount as FAT32 (e.g. one carrying another filesystem)
-// is left untouched unless this is set: Format() erases everything on it.
+// is left untouched unless the build enables formatting: Format() erases
+// everything on it.  Build with `cmake -DSDCARD_TEST_FORMAT=ON` to allow it.
+#ifdef SDCARD_TEST_FORMAT_IF_MOUNT_FAILS
+constexpr bool kFormatIfMountFails = true;
+#else
 constexpr bool kFormatIfMountFails = false;
+#endif
 
 // 32-byte aligned buffers for SD card operations
 SDK_ALIGN(uint8_t test_buffer[512], 32);
