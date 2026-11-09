@@ -22,6 +22,7 @@
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
 #include "libs/base/gpio.h"
+#include "libs/base/i2c.h"
 #include "libs/base/ipc_m7.h"
 #include "libs/base/network.h"
 #include "libs/base/random.h"
@@ -49,6 +50,12 @@
 namespace {
 lpi2c_rtos_handle_t g_i2c5_handle;
 lpi2c_rtos_handle_t g_i2c6_handle;
+// Board rev 1.1 (schematic sheet 9): camera 1 moved from I2C5 to LPI2C1
+// (pads GPIO_AD_32/33, external pull-ups to VDD_1V8, isolated by the switch
+// U9 whose enable follows VDD_1V8_CAM1 unless FLEXPWM1_PWM0_A / GPIO_AD_00 is
+// driven HIGH).  Camera 2 stays on LPI2C6; I2C5 now serves the PMIC (and the
+// LIS2DUX12 accelerometer) only.
+coralmicro::I2cConfig g_i2c1_cam_config;
 coralmicro::CdcEem g_cdc_eem;
 
 // Low-power feature toggles. Set to 1 to enable the corresponding init.
@@ -170,36 +177,69 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   
 #define LDO_1V8_INT_EN_GPIO      GPIO9
 #define LDO_1V8_INT_EN_PIN       20U
-  // Initialize VDD_1V8_INT_EN pin as output
+  // VDD_1V8_INT_EN (GPIO_AD_21 -> GPIO9.20) is the CONTROL pin of the
+  // TCR2LN18 LDO U3, active-high (sheet 4, audit F3/W22-T6).  On the rev 1.1
+  // boards received so far R13 is populated, so VDD_1V8_INT (mic + IMU) is
+  // fed from the PMIC VDD_1V8_AON rail and the LDO output joins the same net
+  // through R12 (0 R) -- turning the LDO on would parallel two regulators on
+  // one rail.  The IMU answers on I2C5 with this pin low, which confirms the
+  // PMIC path is populated.  Set to 1 ONLY on a board where R13 is DNP.
   gpio_pin_config_t ldo_1v8_pin_config = {
       .direction = kGPIO_DigitalOutput,
       .outputLogic = 0,
       .interruptMode = kGPIO_NoIntmode,
   };
-
   GPIO_PinInit(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, &ldo_1v8_pin_config);
   GPIO_PinWrite(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, 0);
-  printf("Enable the LDO_1V8_INT_EN\n");
+  printf("[boot] LDO_1V8_INT held OFF (rail fed from PMIC VDD_1V8_AON)\n");
 
-#define THRS_GPIO      GPIO10
-#define THRS_PIN       6U
-  // Initialize THRS pin as output
-  gpio_pin_config_t thrs_pin_config = {
-      .direction = kGPIO_DigitalOutput,
-      .outputLogic = 0,
-      .interruptMode = kGPIO_NoIntmode,
-  };
-
-  GPIO_PinInit(THRS_GPIO, THRS_PIN, &thrs_pin_config);
-  GPIO_PinWrite(THRS_GPIO, THRS_PIN, 0);
-  printf("Enable the THRS pin\n");
+  // (Removed, audit W22-T5): a "THRS" output on GPIO10.6 = GPIO_SD_B1_03,
+  // which on rev 1.1 is USDHC1_DATA1 -- the pad was driven low at boot before
+  // libs/sdcard re-muxed it.  The T5838 THSEL pin is GPIO_AD_18 on this rev
+  // (libs/t5838/t5838.h) and is driven by the T5838 driver only.
 
   // Allows the AHB clock to run while the core is asleep,
   // so that the TCM is accessible.
   // See section 12.4.4.18 in the IMX1170 TRM for more details.
   IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_CM7_FORCE_HCLK_EN(1);
 
-  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
+  // Camera 1 bus: LPI2C1 (see g_i2c1_cam_config note).  BOARD_InitPins left
+  // GPIO_AD_32/33 muxed as GPIO; I2cInitController re-muxes them to LPI2C1
+  // and the pad config below enables open-drain (0x10 = ODE).  Pre-scheduler
+  // safe: same LPI2C_RTOS_Init path as I2C5/I2C6 above.
+  g_i2c1_cam_config = coralmicro::I2cGetDefaultConfig(coralmicro::I2c::kI2c1);
+  // Same source clock the I2C5/I2C6 inits use: LPI2C1_CLK_ROOT is
+  // OSC_RC_48M_DIV2 = 24 MHz (clock_config.c).  I2cGetDefaultConfig()
+  // derives it from the CCM observation mux, which is not guaranteed to be
+  // set up this early; a wrong value here means a wrong SCCB baud rate.
+  g_i2c1_cam_config.clk_freq = CLOCK_GetFreq(kCLOCK_OscRc48MDiv2);
+  if (!coralmicro::I2cInitController(g_i2c1_cam_config)) {
+    printf("[i2c] LPI2C1 (camera 1) init FAILED\r\n");
+  }
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_32_LPI2C1_SCL, 0x10U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_33_LPI2C1_SDA, 0x10U);
+
+  // FLEXPWM1_PWM0_A / GPIO_AD_00 gates the CAM1 I2C isolation switch: HIGH
+  // turns Q7 on and cuts LPI2C1 off from camera 1 (sheet 6).  The pad
+  // powers up with its internal pull-up enabled (SW_PAD_CTL = 0x0E, pin
+  // level 1 -> camera 1 NAKs every transfer).  Force it LOW: GPIO output 0 +
+  // pad pull-down (DSE|PUE, PUS=0).  Same treatment for GPIO_AD_01 (PWM0_B)
+  // which gates the add-on I2C1 switch.  libs/base/pwm.cc must not re-mux
+  // these pads to FLEXPWM1 (see PwmInit).
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_00_GPIO_MUX2_IO31, 0U);
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_01_GPIO_MUX3_IO00, 0U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_00_GPIO_MUX2_IO31, 0x06U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_01_GPIO_MUX3_IO00, 0x06U);
+  {
+    gpio_pin_config_t low = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO2, 31, &low);   // GPIO_AD_00 -> GPIO_MUX2_IO31
+    GPIO_PinInit(GPIO3, 0, &low);    // GPIO_AD_01 -> GPIO_MUX3_IO00
+  }
+
+  // cam_id 0 = camera 1 on LPI2C1, cam_id 1 = camera 2 on LPI2C6; the GPIO
+  // level of the analogue MUX equals cam_id (see camera.cc MUX_* macros).
+  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c1_cam_config.controller_handle,
+                                               &g_i2c6_handle);
 
   coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
 

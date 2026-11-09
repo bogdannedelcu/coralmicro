@@ -80,6 +80,10 @@ I2cConfig I2cGetDefaultConfig(I2c bus) {
 
 bool I2cInitController(I2cConfig& config) {
   I2cInit(config, true);
+  // Bound every transfer: a slave that clock-stretches forever (or a lost
+  // LPI2C IRQ) otherwise parks LPI2C_RTOS_Transfer at portMAX_DELAY.
+  // Hardware limit ~43 ms at 24 MHz; 20 ms.
+  config.controller_config.pinLowTimeout_ns = 20000000U;
   return (LPI2C_RTOS_Init(&config.controller_handle, config.base,
                           &config.controller_config,
                           config.clk_freq) == kStatus_Success);

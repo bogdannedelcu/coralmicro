@@ -341,6 +341,15 @@ class CameraTask
   bool Write(uint16_t reg, uint8_t val);
   bool Write(uint16_t reg, const uint8_t *val, int size);
 
+  // Per-camera register access on that camera's own I2C bus
+  // (cam_id 0 = camera 1 / LPI2C1, cam_id 1 = camera 2 / LPI2C6).
+  bool WriteToCam(int cam_id, uint16_t reg, uint8_t val);
+  bool ReadFromCam(int cam_id, uint16_t reg, uint8_t* val);
+
+  // Bitmask of cameras that answered WHO_AM_I at the last SetPower(true):
+  // bit0 = cam_id 0, bit1 = cam_id 1.
+  uint8_t DetectedMask() const { return detected_mask_; }
+
  private:
   bool VideoConvert(uint32_t in);
   int GetFrame(uint8_t** buffer, bool block);
@@ -360,6 +369,11 @@ class CameraTask
   void SetDefaultRegisters();
   void SetMotionDetectionRegisters();
   bool Detect(void);
+  // Per-bus detect: reads WHO_AM_I on cam_id's own bus and checks BOTH the
+  // transfer status and the value (the legacy Detect() could report a dead
+  // bus as present because Read() fills one buffer from both buses).
+  bool Detect(int cam_id);
+  uint8_t detected_mask_ = 0;
 
   lpi2c_rtos_handle_t* i2c_handle_;
   lpi2c_rtos_handle_t* i2c_handle2_;

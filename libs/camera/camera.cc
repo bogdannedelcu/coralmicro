@@ -490,12 +490,18 @@ bool CameraTask::Read(uint16_t reg, uint8_t* val) {
   transfer.data = val;
   transfer.dataSize = sizeof(*val);
 
-  status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
-  status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
+  // Read from the detected camera(s); cam0's value wins when both answer
+  // (same sensor type, same register map).  A bus whose camera was not
+  // detected at power-on is skipped so it cannot mask the live one.
+  const uint8_t mask = detected_mask_ ? detected_mask_ : 0x3u;
+  status_t status2 = (mask & 2u) ? LPI2C_RTOS_Transfer(i2c_handle2_, &transfer)
+                                 : kStatus_Success;
+  status_t status1 = (mask & 1u) ? LPI2C_RTOS_Transfer(i2c_handle_, &transfer)
+                                 : kStatus_Success;
 
   DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
 
-  return status1 == kStatus_Success;
+  return status1 == kStatus_Success && status2 == kStatus_Success;
 }
 
 bool CameraTask::Write(uint16_t reg, uint8_t val) {
@@ -512,12 +518,68 @@ bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
   transfer.data = (void *)val;
   transfer.dataSize = size;
 
-  status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
-  status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
+  // Write to every detected camera; success requires each of them to ACK
+  // (the old code returned the bus-1 status only, so a half-programmed
+  // camera 2 looked like a successful init).
+  const uint8_t mask = detected_mask_ ? detected_mask_ : 0x3u;
+  status_t status1 = (mask & 1u) ? LPI2C_RTOS_Transfer(i2c_handle_, &transfer)
+                                 : kStatus_Success;
+  status_t status2 = (mask & 2u) ? LPI2C_RTOS_Transfer(i2c_handle2_, &transfer)
+                                 : kStatus_Success;
 
   DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
 
-  return status1 == kStatus_Success;
+  return status1 == kStatus_Success && status2 == kStatus_Success;
+}
+
+bool CameraTask::WriteToCam(int cam_id, uint16_t reg, uint8_t val) {
+  lpi2c_rtos_handle_t* handle = (cam_id == 0) ? i2c_handle_ : i2c_handle2_;
+  if (!handle) return false;
+
+  lpi2c_master_transfer_t transfer;
+  transfer.flags = kLPI2C_TransferDefaultFlag;
+  transfer.slaveAddress = kCameraAddress;
+  transfer.direction = kLPI2C_Write;
+  transfer.subaddress = static_cast<uint16_t>(reg);
+  transfer.subaddressSize = sizeof(reg);
+  transfer.data = &val;
+  transfer.dataSize = 1;
+
+  status_t status = LPI2C_RTOS_Transfer(handle, &transfer);
+  if (status != kStatus_Success) {
+    printf("[CAM%d] W 0x%04X=0x%02X FAIL (%ld)\r\n", cam_id, reg, val, (long)status);
+  }
+  return status == kStatus_Success;
+}
+
+bool CameraTask::ReadFromCam(int cam_id, uint16_t reg, uint8_t* val) {
+  lpi2c_rtos_handle_t* handle = (cam_id == 0) ? i2c_handle_ : i2c_handle2_;
+  if (!handle) return false;
+
+  lpi2c_master_transfer_t transfer;
+  transfer.flags = kLPI2C_TransferDefaultFlag;
+  transfer.slaveAddress = kCameraAddress;
+  transfer.direction = kLPI2C_Read;
+  transfer.subaddress = static_cast<uint16_t>(reg);
+  transfer.subaddressSize = sizeof(reg);
+  transfer.data = val;
+  transfer.dataSize = 1;
+
+  status_t status = LPI2C_RTOS_Transfer(handle, &transfer);
+  return status == kStatus_Success;
+}
+
+bool CameraTask::Detect(int cam_id) {
+  // Status-checked, single-bus detect.  Bounded: 10 attempts.
+  for (int i = 0; i < 10; ++i) {
+    uint8_t h = 0xff, l = 0xff;
+    if (ReadFromCam(cam_id, 0x300A, &h) && ReadFromCam(cam_id, 0x300B, &l) &&
+        h == kModelIdHExpected && l == kModelIdLExpected) {
+      return true;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
+  return false;
 }
 
 void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_handle2) {
@@ -535,7 +597,8 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
   GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
 
-  printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
+  printf ("%s: i2c_handle: %p, i2c_handle2: %p\r\n", __func__,
+          static_cast<void*>(i2c_handle), static_cast<void*>(i2c_handle2));
 }
 
 void CameraTask::SwitchCamera(SwitchCameraId cameraId) {
@@ -839,19 +902,14 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
     vTaskDelay(pdMS_TO_TICKS(40));
     // Set MUX on front camera by default
     coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-    // Init Cam on I2C1
-    resp.success = CameraTask::Detect();
-    printf ("%s: try I2C1: %s\n", __func__,
-      resp.success ? "Success":"Failed");
-    if (i2c_handle2_) {
-      lpi2c_rtos_handle_t *old = i2c_handle_;
-      i2c_handle_ = i2c_handle2_;
-      // Init Cam on I2C2
-      resp.success = CameraTask::Detect();
-      printf ("%s: try I2C2: %s\n", __func__,
-        resp.success ? "Success":"Failed");
-      i2c_handle_ = old;
-    }
+    // Per-bus, status-checked detect.  The legacy swap-the-handle probe
+    // reported camera 2's answer for both buses.
+    const bool cam0_ok = Detect(0);
+    const bool cam1_ok = (i2c_handle2_ != nullptr) && Detect(1);
+    detected_mask_ = (cam0_ok ? 1u : 0u) | (cam1_ok ? 2u : 0u);
+    printf("%s: cam0 (LPI2C1): %s, cam1 (LPI2C6): %s\r\n", __func__,
+           cam0_ok ? "OK" : "NO ANSWER", cam1_ok ? "OK" : "NO ANSWER");
+    resp.success = (detected_mask_ != 0u);  // at least one sensor present
   } else {
     // Power down: assert power-down and reset pins with same delays as enable
     coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamPwrDn, 1);

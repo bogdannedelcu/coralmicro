@@ -61,11 +61,20 @@ PwmPinSetting PwmPinSettingFor(PwmPin pin) {
 }
 
 void PwmInit() {
+  // Board rev 1.1: GPIO_AD_00 / GPIO_AD_01 (FLEXPWM1_PWM0_A/B on the
+  // original Coral pinout) are the gates of the camera-1 I2C isolation
+  // switches (Q7 / add-on switch, sheet 6).  Muxing them to FLEXPWM1 opens
+  // the switch and camera 1 stops answering on LPI2C1 (init_audit.md F4).
+  // main_freertos_m7.cc drives them LOW as GPIO at boot; leave them alone
+  // unless building for the original board.
+#ifdef BOARD_REV_1_0_PWM_PADS
   static bool muxed{false};
   if (!muxed) {
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_00_FLEXPWM1_PWM0_A, 0U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_01_FLEXPWM1_PWM0_B, 0U);
+    muxed = true;
   }
+#endif
   static bool xbar_inited = false;
   if (!xbar_inited) {
     XBARA_Init(XBARA1);
