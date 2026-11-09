@@ -1,0 +1,675 @@
+BOARD_PullCameraResetPin:1
+Tx|0x3103=0x11|(s1: 0)(s2:0)
+Tx|0x3008=0x82|(s1: 0)(s2:0)
+Tx|0x3008=0x42|(s1: 0)(s2:0)
+Tx|0x3103=0x03|(s1: 0)(s2:0)
+Tx|0x3000=0x00|(s1: 0)(s2:0)
+Tx|0x3004=0xFF|(s1: 0)(s2:0)
+Tx|0x3002=0x1C|(s1: 0)(s2:0)
+Tx|0x3006=0xC3|(s1: 0)(s2:0)
+Tx|0x302E=0x08|(s1: 0)(s2:0)
+Tx|0x3037=0x13|(s1: 0)(s2:0)
+Tx|0x3108=0x01|(s1: 0)(s2:0)
+Tx|0x3618=0x00|(s1: 0)(s2:0)
+Tx|0x3612=0x29|(s1: 0)(s2:0)
+Tx|0x3708=0x64|(s1: 0)(s2:0)
+Tx|0x3709=0x52|(s1: 0)(s2:0)
+Tx|0x370C=0x03|(s1: 0)(s2:0)
+Tx|0x3820=0x41|(s1: 0)(s2:0)
+Tx|0x3821=0x07|(s1: 0)(s2:0)
+Tx|0x3630=0x36|(s1: 0)(s2:0)
+Tx|0x3631=0x0E|(s1: 0)(s2:0)
+Tx|0x3632=0xE2|(s1: 0)(s2:0)
+Tx|0x3633=0x12|(s1: 0)(s2:0)
+Tx|0x3621=0xE0|(s1: 0)(s2:0)
+Tx|0x3704=0xA0|(s1: 0)(s2:0)
+Tx|0x3703=0x5A|(s1: 0)(s2:0)
+Tx|0x3715=0x78|(s1: 0)(s2:0)
+Tx|0x3717=0x01|(s1: 0)(s2:0)
+Tx|0x370B=0x60|(s1: 0)(s2:0)
+Tx|0x3705=0x1A|(s1: 0)(s2:0)
+Tx|0x3905=0x02|(s1: 0)(s2:0)
+Tx|0x3906=0x10|(s1: 0)(s2:0)
+Tx|0x3901=0x0A|(s1: 0)(s2:0)
+Tx|0x3731=0x12|(s1: 0)(s2:0)
+Tx|0x3600=0x08|(s1: 0)(s2:0)
+Tx|0x3601=0x33|(s1: 0)(s2:0)
+Tx|0x302D=0x60|(s1: 0)(s2:0)
+Tx|0x3620=0x52|(s1: 0)(s2:0)
+Tx|0x371B=0x20|(s1: 0)(s2:0)
+Tx|0x471C=0x50|(s1: 0)(s2:0)
+Tx|0x3A13=0x43|(s1: 0)(s2:0)
+Tx|0x3A18=0x00|(s1: 0)(s2:0)
+Tx|0x3A19=0x7C|(s1: 0)(s2:0)
+Tx|0x3635=0x13|(s1: 0)(s2:0)
+Tx|0x3636=0x03|(s1: 0)(s2:0)
+Tx|0x3634=0x40|(s1: 0)(s2:0)
+Tx|0x3622=0x01|(s1: 0)(s2:0)
+Tx|0x3C01=0x00|(s1: 0)(s2:0)
+Tx|0x3A00=0x58|(s1: 0)(s2:0)
+Tx|0x4001=0x02|(s1: 0)(s2:0)
+Tx|0x4004=0x02|(s1: 0)(s2:0)
+Tx|0x4005=0x1A|(s1: 0)(s2:0)
+Tx|0x5001=0xA3|(s1: 0)(s2:0)
+Tx|0x3A0F=0x30|(s1: 0)(s2:0)
+Tx|0x3A10=0x28|(s1: 0)(s2:0)
+Tx|0x3A1B=0x30|(s1: 0)(s2:0)
+Tx|0x3A1E=0x26|(s1: 0)(s2:0)
+Tx|0x3A11=0x60|(s1: 0)(s2:0)
+Tx|0x3A1F=0x14|(s1: 0)(s2:0)
+Tx|0x5180=0xFF|(s1: 0)(s2:0)
+Tx|0x5181=0xF2|(s1: 0)(s2:0)
+Tx|0x5182=0x00|(s1: 0)(s2:0)
+Tx|0x5183=0x14|(s1: 0)(s2:0)
+Tx|0x5184=0x25|(s1: 0)(s2:0)
+Tx|0x5185=0x24|(s1: 0)(s2:0)
+Tx|0x5186=0x09|(s1: 0)(s2:0)
+Tx|0x5187=0x09|(s1: 0)(s2:0)
+Tx|0x5188=0x09|(s1: 0)(s2:0)
+Tx|0x5189=0x88|(s1: 0)(s2:0)
+Tx|0x518A=0x54|(s1: 0)(s2:0)
+Tx|0x518B=0xEE|(s1: 0)(s2:0)
+Tx|0x518C=0xB2|(s1: 0)(s2:0)
+Tx|0x518D=0x50|(s1: 0)(s2:0)
+Tx|0x518E=0x34|(s1: 0)(s2:0)
+Tx|0x518F=0x6B|(s1: 0)(s2:0)
+Tx|0x5190=0x46|(s1: 0)(s2:0)
+Tx|0x5191=0xF8|(s1: 0)(s2:0)
+Tx|0x5192=0x04|(s1: 0)(s2:0)
+Tx|0x5193=0x70|(s1: 0)(s2:0)
+Tx|0x5194=0xF0|(s1: 0)(s2:0)
+Tx|0x5195=0xF0|(s1: 0)(s2:0)
+Tx|0x5196=0x03|(s1: 0)(s2:0)
+Tx|0x5197=0x01|(s1: 0)(s2:0)
+Tx|0x5198=0x04|(s1: 0)(s2:0)
+Tx|0x5199=0x6C|(s1: 0)(s2:0)
+Tx|0x519A=0x04|(s1: 0)(s2:0)
+Tx|0x519B=0x00|(s1: 0)(s2:0)
+Tx|0x519C=0x09|(s1: 0)(s2:0)
+Tx|0x519D=0x2B|(s1: 0)(s2:0)
+Tx|0x519E=0x38|(s1: 0)(s2:0)
+Tx|0x5381=0x1E|(s1: 0)(s2:0)
+Tx|0x5382=0x5B|(s1: 0)(s2:0)
+Tx|0x5383=0x08|(s1: 0)(s2:0)
+Tx|0x5384=0x0A|(s1: 0)(s2:0)
+Tx|0x5385=0x7E|(s1: 0)(s2:0)
+Tx|0x5386=0x88|(s1: 0)(s2:0)
+Tx|0x5387=0x7C|(s1: 0)(s2:0)
+Tx|0x5388=0x6C|(s1: 0)(s2:0)
+Tx|0x5389=0x10|(s1: 0)(s2:0)
+Tx|0x538A=0x01|(s1: 0)(s2:0)
+Tx|0x538B=0x98|(s1: 0)(s2:0)
+Tx|0x5300=0x08|(s1: 0)(s2:0)
+Tx|0x5301=0x30|(s1: 0)(s2:0)
+Tx|0x5302=0x10|(s1: 0)(s2:0)
+Tx|0x5303=0x00|(s1: 0)(s2:0)
+Tx|0x5304=0x08|(s1: 0)(s2:0)
+Tx|0x5305=0x30|(s1: 0)(s2:0)
+Tx|0x5306=0x08|(s1: 0)(s2:0)
+Tx|0x5307=0x16|(s1: 0)(s2:0)
+Tx|0x5309=0x08|(s1: 0)(s2:0)
+Tx|0x530A=0x30|(s1: 0)(s2:0)
+Tx|0x530B=0x04|(s1: 0)(s2:0)
+Tx|0x530C=0x06|(s1: 0)(s2:0)
+Tx|0x5480=0x01|(s1: 0)(s2:0)
+Tx|0x5481=0x08|(s1: 0)(s2:0)
+Tx|0x5482=0x14|(s1: 0)(s2:0)
+Tx|0x5483=0x28|(s1: 0)(s2:0)
+Tx|0x5484=0x51|(s1: 0)(s2:0)
+Tx|0x5485=0x65|(s1: 0)(s2:0)
+Tx|0x5486=0x71|(s1: 0)(s2:0)
+Tx|0x5487=0x7D|(s1: 0)(s2:0)
+Tx|0x5488=0x87|(s1: 0)(s2:0)
+Tx|0x5489=0x91|(s1: 0)(s2:0)
+Tx|0x548A=0x9A|(s1: 0)(s2:0)
+Tx|0x548B=0xAA|(s1: 0)(s2:0)
+Tx|0x548C=0xB8|(s1: 0)(s2:0)
+Tx|0x548D=0xCD|(s1: 0)(s2:0)
+Tx|0x548E=0xDD|(s1: 0)(s2:0)
+Tx|0x548F=0xEA|(s1: 0)(s2:0)
+Tx|0x5490=0x1D|(s1: 0)(s2:0)
+Tx|0x5580=0x02|(s1: 0)(s2:0)
+Tx|0x5583=0x40|(s1: 0)(s2:0)
+Tx|0x5584=0x10|(s1: 0)(s2:0)
+Tx|0x5589=0x10|(s1: 0)(s2:0)
+Tx|0x558A=0x00|(s1: 0)(s2:0)
+Tx|0x558B=0xF8|(s1: 0)(s2:0)
+Tx|0x5800=0x23|(s1: 0)(s2:0)
+Tx|0x5801=0x14|(s1: 0)(s2:0)
+Tx|0x5802=0x0F|(s1: 0)(s2:0)
+Tx|0x5803=0x0F|(s1: 0)(s2:0)
+Tx|0x5804=0x12|(s1: 0)(s2:0)
+Tx|0x5805=0x26|(s1: 0)(s2:0)
+Tx|0x5806=0x0C|(s1: 0)(s2:0)
+Tx|0x5807=0x08|(s1: 0)(s2:0)
+Tx|0x5808=0x05|(s1: 0)(s2:0)
+Tx|0x5809=0x05|(s1: 0)(s2:0)
+Tx|0x580A=0x08|(s1: 0)(s2:0)
+Tx|0x580B=0x0D|(s1: 0)(s2:0)
+Tx|0x580C=0x08|(s1: 0)(s2:0)
+Tx|0x580D=0x03|(s1: 0)(s2:0)
+Tx|0x580E=0x00|(s1: 0)(s2:0)
+Tx|0x580F=0x00|(s1: 0)(s2:0)
+Tx|0x5810=0x03|(s1: 0)(s2:0)
+Tx|0x5811=0x09|(s1: 0)(s2:0)
+Tx|0x5812=0x07|(s1: 0)(s2:0)
+Tx|0x5813=0x03|(s1: 0)(s2:0)
+Tx|0x5814=0x00|(s1: 0)(s2:0)
+Tx|0x5815=0x01|(s1: 0)(s2:0)
+Tx|0x5816=0x03|(s1: 0)(s2:0)
+Tx|0x5817=0x08|(s1: 0)(s2:0)
+Tx|0x5818=0x0D|(s1: 0)(s2:0)
+Tx|0x5819=0x08|(s1: 0)(s2:0)
+Tx|0x581A=0x05|(s1: 0)(s2:0)
+Tx|0x581B=0x06|(s1: 0)(s2:0)
+Tx|0x581C=0x08|(s1: 0)(s2:0)
+Tx|0x581D=0x0E|(s1: 0)(s2:0)
+Tx|0x581E=0x29|(s1: 0)(s2:0)
+Tx|0x581F=0x17|(s1: 0)(s2:0)
+Tx|0x5820=0x11|(s1: 0)(s2:0)
+Tx|0x5821=0x11|(s1: 0)(s2:0)
+Tx|0x5822=0x15|(s1: 0)(s2:0)
+Tx|0x5823=0x28|(s1: 0)(s2:0)
+Tx|0x5824=0x46|(s1: 0)(s2:0)
+Tx|0x5825=0x26|(s1: 0)(s2:0)
+Tx|0x5826=0x08|(s1: 0)(s2:0)
+Tx|0x5827=0x26|(s1: 0)(s2:0)
+Tx|0x5828=0x64|(s1: 0)(s2:0)
+Tx|0x5829=0x26|(s1: 0)(s2:0)
+Tx|0x582A=0x24|(s1: 0)(s2:0)
+Tx|0x582B=0x22|(s1: 0)(s2:0)
+Tx|0x582C=0x24|(s1: 0)(s2:0)
+Tx|0x582D=0x24|(s1: 0)(s2:0)
+Tx|0x582E=0x06|(s1: 0)(s2:0)
+Tx|0x582F=0x22|(s1: 0)(s2:0)
+Tx|0x5830=0x40|(s1: 0)(s2:0)
+Tx|0x5831=0x42|(s1: 0)(s2:0)
+Tx|0x5832=0x24|(s1: 0)(s2:0)
+Tx|0x5833=0x26|(s1: 0)(s2:0)
+Tx|0x5834=0x24|(s1: 0)(s2:0)
+Tx|0x5835=0x22|(s1: 0)(s2:0)
+Tx|0x5836=0x22|(s1: 0)(s2:0)
+Tx|0x5837=0x26|(s1: 0)(s2:0)
+Tx|0x5838=0x44|(s1: 0)(s2:0)
+Tx|0x5839=0x24|(s1: 0)(s2:0)
+Tx|0x583A=0x26|(s1: 0)(s2:0)
+Tx|0x583B=0x28|(s1: 0)(s2:0)
+Tx|0x583C=0x42|(s1: 0)(s2:0)
+Tx|0x583D=0xCE|(s1: 0)(s2:0)
+Tx|0x3800=0x00|(s1: 0)(s2:0)
+Tx|0x302C=0xC2|(s1: 0)(s2:0)
+Tx|0x4300=0x6F|(s1: 0)(s2:0)
+Tx|0x501F=0x01|(s1: 0)(s2:0)
+Tx|0x3035=0x22|(s1: 0)(s2:0)
+Tx|0x3036=0x38|(s1: 0)(s2:0)
+Tx|0x460C=0x22|(s1: 0)(s2:0)
+Tx|0x3824=0x02|(s1: 0)(s2:0)
+Tx|0x4837=0x0A|(s1: 0)(s2:0)
+Tx|0x3034=0x18|(s1: 0)(s2:0)
+Tx|0x3017=0x00|(s1: 0)(s2:0)
+Tx|0x3018=0x00|(s1: 0)(s2:0)
+Tx|0x300E=0x45|(s1: 0)(s2:0)
+Rx|0x4814=0x2A|(s1: 0)(s2:0)
+Tx|0x4814=0x2A|(s1: 0)(s2:0)
+Tx|0x4800=0x04|(s1: 0)(s2:0)
+Tx|0x4740=0x21|(s1: 0)(s2:0)
+Tx|0x5000=0xA7|(s1: 0)(s2:0)
+Tx|0x3008=0x02|(s1: 0)(s2:0)
+CAMERA_DEVICE_Init = 0
+Tx|0x3008=0x02|(s1: 0)(s2:0)
+CAMERA_DEVICE_Start = 0
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+Rx|0x3008=0x02|(s1: 0)(s2:0)
+CAMERA_RECEIVER_Start = 0
+Serving on---: http://10.0.0.1
+[AudioTask] Starting audio service task
+[AudioTask] Audio service running
+[AudioTask] RMS:          0
+[AccelTask] Starting LIS2DUX12 accelerometer task
+[TcpLog] Listening on port 1234
+[LIS2DUX12] WHO_AM_I=0x00 (expected 0x47) at 0x18
+[AccelTask] LIS2DUX12 ready at 0x19
+[AccelTask] X=62.5 Y=25.4 Z=-978.9 mg  T=29.8 C
+[AccelTask] X=55.6 Y=24.4 Z=-977.0 mg  T=29.8 C
+[AccelTask] X=52.7 Y=23.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=60.5 Y=21.5 Z=-975.0 mg  T=30.2 C
+[AccelTask] X=54.7 Y=29.3 Z=-979.9 mg  T=30.2 C
+[AudioTask] RMS:    1536308
+[AccelTask] X=57.6 Y=21.5 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=20.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=54.7 Y=21.5 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=55.6 Y=27.3 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=54.7 Y=25.4 Z=-975.0 mg  T=29.9 C
+[AudioTask] RMS:     879399
+[AccelTask] X=54.7 Y=24.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=54.7 Y=27.3 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=56.6 Y=20.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=54.7 Y=26.4 Z=-975.0 mg  T=29.9 C
+[AudioTask] RMS:     514753
+[AccelTask] X=54.7 Y=23.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=54.7 Y=24.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=55.6 Y=23.4 Z=-974.0 mg  T=29.9 C
+[AccelTask] X=56.6 Y=24.4 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=54.7 Y=26.4 Z=-971.1 mg  T=30.0 C
+[AudioTask] RMS:     603521
+[AccelTask] X=53.7 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=22.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=54.7 Y=25.4 Z=-973.1 mg  T=29.9 C
+[AccelTask] X=58.6 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=23.4 Z=-972.1 mg  T=30.0 C
+[AudioTask] RMS:     738993
+[AccelTask] X=54.7 Y=25.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=55.6 Y=27.3 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=21.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=63.4 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     745407
+[AccelTask] X=60.5 Y=24.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=23.4 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=56.6 Y=26.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=57.6 Y=21.5 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=62.5 Y=22.4 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     906238
+[AccelTask] X=59.5 Y=26.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=21.5 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=21.5 Z=-977.0 mg  T=29.8 C
+[AccelTask] X=58.6 Y=24.4 Z=-973.1 mg  T=30.2 C
+[AccelTask] X=61.5 Y=20.5 Z=-976.0 mg  T=29.8 C
+[AudioTask] RMS:     785083
+[AccelTask] X=60.5 Y=20.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=56.6 Y=20.5 Z=-978.0 mg  T=29.8 C
+[AccelTask] X=57.6 Y=23.4 Z=-975.0 mg  T=29.8 C
+[AccelTask] X=60.5 Y=22.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=56.6 Y=19.5 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:    1116276
+[AccelTask] X=59.5 Y=25.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=63.4 Y=20.5 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=59.5 Y=23.4 Z=-979.9 mg  T=29.9 C
+[AccelTask] X=58.6 Y=28.3 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=24.4 Z=-973.1 mg  T=30.0 C
+[AudioTask] RMS:    1207796
+[AccelTask] X=57.6 Y=21.5 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=16.6 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=55.6 Y=23.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=60.5 Y=23.4 Z=-976.0 mg  T=29.8 C
+[AccelTask] X=56.6 Y=27.3 Z=-977.0 mg  T=29.9 C
+[AudioTask] RMS:     812440
+[AccelTask] X=60.5 Y=25.4 Z=-980.9 mg  T=30.0 C
+[AccelTask] X=60.5 Y=19.5 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=54.7 Y=23.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=19.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=21.5 Z=-978.9 mg  T=29.8 C
+[AudioTask] RMS:     636528
+[AccelTask] X=64.4 Y=23.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=21.5 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=56.6 Y=23.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=59.5 Y=21.5 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=60.5 Y=22.4 Z=-979.9 mg  T=29.9 C
+[AudioTask] RMS:     892092
+[AccelTask] X=60.5 Y=25.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=25.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=55.6 Y=24.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=19.5 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=54.7 Y=19.5 Z=-978.9 mg  T=29.8 C
+[AudioTask] RMS:     656720
+[AccelTask] X=54.7 Y=27.3 Z=-972.1 mg  T=29.7 C
+[AccelTask] X=53.7 Y=22.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=25.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=62.5 Y=24.4 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=23.4 Z=-977.0 mg  T=29.8 C
+[AudioTask] RMS:     953034
+[AccelTask] X=58.6 Y=17.6 Z=-973.1 mg  T=29.9 C
+[AccelTask] X=62.5 Y=24.4 Z=-972.1 mg  T=29.9 C
+[AccelTask] X=63.4 Y=19.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=63.4 Y=21.5 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=55.6 Y=21.5 Z=-976.0 mg  T=29.9 C
+[AudioTask] RMS:     951993
+[AccelTask] X=62.5 Y=26.4 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=64.4 Y=19.5 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=26.4 Z=-976.0 mg  T=29.8 C
+[AccelTask] X=60.5 Y=23.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=25.4 Z=-978.9 mg  T=30.0 C
+[AudioTask] RMS:     826651
+[AccelTask] X=56.6 Y=21.5 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=28.3 Z=-973.1 mg  T=29.8 C
+[AccelTask] X=54.7 Y=18.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=56.6 Y=22.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=61.5 Y=23.4 Z=-977.0 mg  T=30.1 C
+[AudioTask] RMS:    1031262
+[AccelTask] X=58.6 Y=27.3 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=23.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=56.6 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=23.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=56.6 Y=22.4 Z=-978.9 mg  T=30.0 C
+[AudioTask] RMS:     884471
+[AccelTask] X=61.5 Y=19.5 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=57.6 Y=20.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=17.6 Z=-974.0 mg  T=29.8 C
+[AccelTask] X=57.6 Y=22.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=22.4 Z=-976.0 mg  T=29.8 C
+[AudioTask] RMS:     563015
+[AccelTask] X=61.5 Y=22.4 Z=-978.9 mg  T=29.8 C
+[AccelTask] X=60.5 Y=24.4 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=62.5 Y=23.4 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=21.5 Z=-978.0 mg  T=30.1 C
+[AccelTask] X=62.5 Y=26.4 Z=-978.9 mg  T=30.0 C
+[AudioTask] RMS:    1111303
+[AccelTask] X=57.6 Y=24.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=26.4 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=57.6 Y=25.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=26.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=62.5 Y=26.4 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     591608
+[AccelTask] X=60.5 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=21.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=21.5 Z=-975.0 mg  T=29.8 C
+[AccelTask] X=62.5 Y=25.4 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=23.4 Z=-977.0 mg  T=30.0 C
+[AudioTask] RMS:     599797
+[AccelTask] X=57.6 Y=20.5 Z=-973.1 mg  T=29.8 C
+[AccelTask] X=61.5 Y=18.5 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=56.6 Y=23.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=64.4 Y=26.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=25.4 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     871009
+[AccelTask] X=61.5 Y=23.4 Z=-976.0 mg  T=29.7 C
+[AccelTask] X=58.6 Y=22.4 Z=-978.9 mg  T=29.8 C
+[AccelTask] X=57.6 Y=23.4 Z=-974.0 mg  T=29.9 C
+[AccelTask] X=65.4 Y=21.5 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=58.6 Y=21.5 Z=-976.0 mg  T=29.9 C
+[AudioTask] RMS:     954664
+[AccelTask] X=61.5 Y=26.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=59.5 Y=21.5 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=63.4 Y=22.4 Z=-975.0 mg  T=29.8 C
+[AccelTask] X=60.5 Y=25.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=63.4 Y=21.5 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     676514
+[AccelTask] X=58.6 Y=24.4 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=21.5 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=57.6 Y=23.4 Z=-977.0 mg  T=30.2 C
+[AccelTask] X=60.5 Y=23.4 Z=-977.0 mg  T=29.8 C
+[AccelTask] X=63.4 Y=21.5 Z=-976.0 mg  T=29.9 C
+[AudioTask] RMS:     987701
+[AccelTask] X=61.5 Y=26.4 Z=-978.9 mg  T=29.7 C
+[AccelTask] X=60.5 Y=21.5 Z=-973.1 mg  T=29.7 C
+[AccelTask] X=64.4 Y=26.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=55.6 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     809837
+[AccelTask] X=57.6 Y=22.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=22.4 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=25.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=57.6 Y=20.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=25.4 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     810347
+[AccelTask] X=56.6 Y=24.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=25.4 Z=-973.1 mg  T=29.9 C
+[AccelTask] X=62.5 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=26.4 Z=-974.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     702197
+[AccelTask] X=58.6 Y=27.3 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=65.4 Y=26.4 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=27.3 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=18.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=52.7 Y=20.5 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     567610
+[AccelTask] X=60.5 Y=21.5 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=21.5 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=55.6 Y=24.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=23.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=59.5 Y=17.6 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     732826
+[AccelTask] X=62.5 Y=22.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=24.4 Z=-976.0 mg  T=29.7 C
+[AccelTask] X=60.5 Y=24.4 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=54.7 Y=23.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=26.4 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     707804
+[AccelTask] X=59.5 Y=28.3 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=27.3 Z=-974.0 mg  T=29.8 C
+[AccelTask] X=63.4 Y=21.5 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=25.4 Z=-975.0 mg  T=29.8 C
+[AccelTask] X=55.6 Y=22.4 Z=-977.0 mg  T=29.8 C
+[AudioTask] RMS:     929508
+[AccelTask] X=56.6 Y=26.4 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=25.4 Z=-976.0 mg  T=29.8 C
+[AccelTask] X=60.5 Y=22.4 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=60.5 Y=24.4 Z=-978.9 mg  T=29.9 C
+[AudioTask] RMS:     679447
+[AccelTask] X=57.6 Y=26.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=19.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=21.5 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=57.6 Y=22.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=56.6 Y=22.4 Z=-980.9 mg  T=29.8 C
+[AudioTask] RMS:     903133
+[AccelTask] X=58.6 Y=19.5 Z=-973.1 mg  T=29.9 C
+[AccelTask] X=59.5 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=53.7 Y=25.4 Z=-975.0 mg  T=30.2 C
+[AccelTask] X=61.5 Y=25.4 Z=-979.9 mg  T=29.9 C
+[AccelTask] X=57.6 Y=22.4 Z=-977.0 mg  T=29.9 C
+[AudioTask] RMS:     766603
+[AccelTask] X=57.6 Y=26.4 Z=-974.0 mg  T=29.8 C
+[AccelTask] X=59.5 Y=22.4 Z=-981.9 mg  T=29.9 C
+[AccelTask] X=59.5 Y=26.4 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=25.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=22.4 Z=-979.9 mg  T=29.8 C
+[AudioTask] RMS:     658949
+[AccelTask] X=63.4 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=20.5 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=60.5 Y=26.4 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=63.4 Y=22.4 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=63.4 Y=25.4 Z=-975.0 mg  T=29.9 C
+[AudioTask] RMS:     679405
+[AccelTask] X=59.5 Y=18.5 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=54.7 Y=25.4 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=21.5 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=61.5 Y=22.4 Z=-980.9 mg  T=30.0 C
+[AccelTask] X=64.4 Y=21.5 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     534834
+[AccelTask] X=56.6 Y=25.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=56.6 Y=22.4 Z=-979.9 mg  T=29.9 C
+[AccelTask] X=57.6 Y=24.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=26.4 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     734140
+[AccelTask] X=63.4 Y=21.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=56.6 Y=26.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=24.4 Z=-978.0 mg  T=29.9 C
+[AccelTask] X=58.6 Y=20.5 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=57.6 Y=24.4 Z=-977.0 mg  T=29.9 C
+[AudioTask] RMS:    1101677
+[AccelTask] X=58.6 Y=24.4 Z=-975.0 mg  T=29.9 C
+[AccelTask] X=63.4 Y=21.5 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=59.5 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=28.3 Z=-978.0 mg  T=30.1 C
+[AccelTask] X=60.5 Y=22.4 Z=-978.9 mg  T=29.8 C
+[AudioTask] RMS:     873529
+[AccelTask] X=59.5 Y=19.5 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=55.6 Y=21.5 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=59.5 Y=25.4 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=21.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=22.4 Z=-978.0 mg  T=29.9 C
+[AudioTask] RMS:     765223
+[AccelTask] X=59.5 Y=23.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=59.5 Y=23.4 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=62.5 Y=17.6 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=59.5 Y=20.5 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     621896
+[AccelTask] X=58.6 Y=20.5 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=61.5 Y=22.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=64.4 Y=21.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=24.4 Z=-977.0 mg  T=30.0 C
+[AudioTask] RMS:     852275
+[AccelTask] X=59.5 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=27.3 Z=-973.1 mg  T=29.9 C
+[AccelTask] X=53.7 Y=24.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=21.5 Z=-978.0 mg  T=30.2 C
+[AccelTask] X=61.5 Y=23.4 Z=-974.0 mg  T=30.0 C
+[AudioTask] RMS:    1029865
+[AccelTask] X=56.6 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=54.7 Y=20.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=23.4 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=60.5 Y=20.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=20.5 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     909372
+[AccelTask] X=64.4 Y=20.5 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=60.5 Y=24.4 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=61.5 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=22.4 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=21.5 Z=-977.0 mg  T=30.2 C
+[AudioTask] RMS:     721273
+[AccelTask] X=58.6 Y=27.3 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=20.5 Z=-979.9 mg  T=30.1 C
+[AccelTask] X=57.6 Y=20.5 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=52.7 Y=27.3 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=60.5 Y=20.5 Z=-975.0 mg  T=30.1 C
+[AudioTask] RMS:     540298
+[AccelTask] X=60.5 Y=26.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=26.4 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=59.5 Y=29.3 Z=-978.9 mg  T=29.9 C
+[AccelTask] X=59.5 Y=27.3 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=62.5 Y=23.4 Z=-978.0 mg  T=30.0 C
+[AudioTask] RMS:     684341
+[AccelTask] X=52.7 Y=27.3 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=62.5 Y=24.4 Z=-979.9 mg  T=29.9 C
+[AccelTask] X=59.5 Y=24.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=61.5 Y=21.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=19.5 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     793956
+[AccelTask] X=62.5 Y=23.4 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=20.5 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=57.6 Y=22.4 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=21.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=24.4 Z=-975.0 mg  T=29.9 C
+[AudioTask] RMS:     754477
+[AccelTask] X=55.6 Y=29.3 Z=-976.0 mg  T=30.2 C
+[AccelTask] X=57.6 Y=26.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=61.5 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=23.4 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     837793
+[AccelTask] X=61.5 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=24.4 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=56.6 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=24.4 Z=-976.0 mg  T=29.9 C
+[AccelTask] X=62.5 Y=25.4 Z=-973.1 mg  T=30.2 C
+[AudioTask] RMS:     642164
+[AccelTask] X=61.5 Y=26.4 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=57.6 Y=23.4 Z=-982.8 mg  T=29.9 C
+[AccelTask] X=58.6 Y=27.3 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=22.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=57.6 Y=26.4 Z=-977.0 mg  T=30.0 C
+[AudioTask] RMS:     669704
+[AccelTask] X=61.5 Y=25.4 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=59.5 Y=26.4 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=57.6 Y=27.3 Z=-976.0 mg  T=30.2 C
+[AccelTask] X=55.6 Y=22.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=53.7 Y=25.4 Z=-973.1 mg  T=30.0 C
+[AudioTask] RMS:     768608
+[AccelTask] X=58.6 Y=25.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=20.5 Z=-976.0 mg  T=30.2 C
+[AccelTask] X=61.5 Y=21.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=24.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=27.3 Z=-975.0 mg  T=30.1 C
+[AudioTask] RMS:     675431
+[AccelTask] X=60.5 Y=24.4 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=55.6 Y=20.5 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=59.5 Y=20.5 Z=-978.0 mg  T=30.1 C
+[AccelTask] X=59.5 Y=20.5 Z=-975.0 mg  T=30.2 C
+[AccelTask] X=55.6 Y=23.4 Z=-978.0 mg  T=29.9 C
+[AudioTask] RMS:     672375
+[AccelTask] X=55.6 Y=23.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=26.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=20.5 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=55.6 Y=27.3 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=63.4 Y=22.4 Z=-976.0 mg  T=30.1 C
+[AudioTask] RMS:     594591
+[AccelTask] X=59.5 Y=25.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=55.6 Y=22.4 Z=-975.0 mg  T=30.2 C
+[AccelTask] X=57.6 Y=25.4 Z=-978.0 mg  T=30.1 C
+[AccelTask] X=63.4 Y=25.4 Z=-972.1 mg  T=30.0 C
+[AccelTask] X=58.6 Y=23.4 Z=-973.1 mg  T=30.1 C
+[AudioTask] RMS:     756716
+[AccelTask] X=60.5 Y=24.4 Z=-978.9 mg  T=30.2 C
+[AccelTask] X=59.5 Y=26.4 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=63.4 Y=20.5 Z=-974.0 mg  T=30.1 C
+[AccelTask] X=61.5 Y=22.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=27.3 Z=-978.9 mg  T=30.2 C
+[AudioTask] RMS:     793732
+[AccelTask] X=60.5 Y=22.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=62.5 Y=24.4 Z=-973.1 mg  T=30.0 C
+[AccelTask] X=60.5 Y=20.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=21.5 Z=-979.9 mg  T=30.2 C
+[AccelTask] X=55.6 Y=21.5 Z=-971.1 mg  T=30.3 C
+[AudioTask] RMS:     621893
+[AccelTask] X=62.5 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=23.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=58.6 Y=21.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=24.4 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=26.4 Z=-978.9 mg  T=30.1 C
+[AudioTask] RMS:     759056
+[AccelTask] X=58.6 Y=23.4 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=62.5 Y=20.5 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=57.6 Y=25.4 Z=-975.0 mg  T=30.2 C
+[AccelTask] X=56.6 Y=20.5 Z=-975.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=26.4 Z=-975.0 mg  T=30.1 C
+[AudioTask] RMS:     539810
+[AccelTask] X=57.6 Y=20.5 Z=-974.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=25.4 Z=-975.0 mg  T=30.2 C
+[AccelTask] X=58.6 Y=26.4 Z=-978.0 mg  T=30.0 C
+[AccelTask] X=60.5 Y=24.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=57.6 Y=22.4 Z=-978.9 mg  T=30.0 C
+[AudioTask] RMS:    1141064
+[AccelTask] X=60.5 Y=19.5 Z=-973.1 mg  T=30.2 C
+[AccelTask] X=61.5 Y=21.5 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=19.5 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=21.5 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=58.6 Y=24.4 Z=-976.0 mg  T=30.0 C
+[AudioTask] RMS:     587103
+[AccelTask] X=55.6 Y=21.5 Z=-972.1 mg  T=30.0 C
+[AccelTask] X=58.6 Y=27.3 Z=-972.1 mg  T=30.2 C
+[AccelTask] X=61.5 Y=22.4 Z=-976.0 mg  T=30.1 C
+[AccelTask] X=57.6 Y=19.5 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=55.6 Y=28.3 Z=-975.0 mg  T=30.0 C
+[AudioTask] RMS:     765860
+[AccelTask] X=58.6 Y=20.5 Z=-975.0 mg  T=30.3 C
+[AccelTask] X=61.5 Y=24.4 Z=-978.0 mg  T=30.1 C
+[AccelTask] X=59.5 Y=23.4 Z=-980.9 mg  T=30.1 C
+[AccelTask] X=60.5 Y=25.4 Z=-979.9 mg  T=30.1 C
+[AccelTask] X=57.6 Y=25.4 Z=-976.0 mg  T=30.1 C
+[AudioTask] RMS:     788803
+[AccelTask] X=62.5 Y=20.5 Z=-978.9 mg  T=30.2 C
+[AccelTask] X=57.6 Y=13.7 Z=-975.0 mg  T=30.1 C
+[AccelTask] X=56.6 Y=24.4 Z=-979.9 mg  T=30.0 C
+[AccelTask] X=59.5 Y=28.3 Z=-974.0 mg  T=29.9 C
+[AccelTask] X=61.5 Y=23.4 Z=-978.9 mg  T=30.2 C
+[AudioTask] RMS:     815587
+[AccelTask] X=55.6 Y=23.4 Z=-978.9 mg  T=30.1 C
+[AccelTask] X=59.5 Y=20.5 Z=-971.1 mg  T=30.0 C
+[AccelTask] X=62.5 Y=19.5 Z=-976.0 mg  T=30.2 C
+[AccelTask] X=56.6 Y=26.4 Z=-978.9 mg  T=30.0 C
+[AccelTask] X=59.5 Y=24.4 Z=-976.0 mg  T=30.2 C
+[AudioTask] RMS:    1013723
+[AccelTask] X=60.5 Y=22.4 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=20.5 Z=-976.0 mg  T=30.0 C
+[AccelTask] X=61.5 Y=22.4 Z=-977.0 mg  T=29.9 C
+[AccelTask] X=60.5 Y=25.4 Z=-977.0 mg  T=30.1 C
+[AccelTask] X=61.5 Y=22.4 Z=-978.9 mg  T=30.2 C
+[AudioTask] RMS:    1017906
+[AccelTask] X=60.5 Y=21.5 Z=-974.0 mg  T=30.2 C
+[AccelTask] X=57.6 Y=22.4 Z=-977.0 mg  T=30.0 C
+[AccelTask] X=58.6 Y=23.4 Z=-978.0 mg  T=30.2 C
+[AccelTask] X=58.6 Y=25.4 Z=-977.0 mg  T=30.1 C

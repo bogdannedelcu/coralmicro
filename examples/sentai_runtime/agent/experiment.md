@@ -7211,3 +7211,20 @@ there silently writes to host rootfs, not the board. (3) Recovered the board fro
 full power-down (a prior desc_cache wedge) — a physical replug is the only reliable
 POR; see memory `reference_board_usb_wedge_needs_physical_por`.
 - 2026-11-08 — **OP-S10-W24-T22 / EXP-s265 iter5**: colour sets re-tuned for the Philips 234E5 landscape monitor rig (centre mode, expo+tone_centre+awb): cam0 ΔE76 centre 7.0, cam1 12.2 after reset with the tuning exposure frozen; default upload (auto exposure) clips → `--keep-exposure` for this rig. Stale ramp-PNG bug fixed in `stage_tone_centre`. Same day: Unreal Bologna on one monitor (plugin `SplitScreen` key, `run_bologna_single.sh`), Paris demo from the colleague built on Linux (upstream AirSim c2703d0 + ue58 patch + glibc shim, `run_paris_single.sh`), SentAI camera sees both games.
+
+## 2026-11-09 — OP-S10-W22-T11: rev-1.1 hardware support as a SentAI-free branch (EXP-s272)
+
+Branch `lucian/board-rev-1.1` from the camera colleague's last commit 6448b25d
+(no SentAI runtime).  Nine commits: docs (audit/BOM/boot notes), SDK patches at
+configure time (0001+0007 merged, 0005 with a weak hook default), microSD on
+USDHC1 with the FatFs API kept (drive "2:", FF_VOLUMES 3, fsl_sd_disk fix,
+elf_loader pad parking), camera 1 on LPI2C1 + FlexPWM1 pad guard + per-bus
+detect, LIS2DUX12 + test example, T5838/audio/PMIC fixes, tools (flashtool VIDs,
+efuse_boot_cfg.py), non-destructive sdcard_test, USB console reliability.
+Tested on 58eb with `flashtool.py --ram` (SentAI image kept in NAND): SD 4-bit
+49.5 MHz block tests pass with block restore, LIS2DUX12 WHO_AM_I 0x47 at 0x19,
+`cam0 (LPI2C1): OK, cam1 (LPI2C6): OK`, cam0 JPEG of the monitor over
+`10.0.0.1/camera_stream`.  Host fixes: udev rule for 18d1:9308 added to
+scripts/99-coral-micro.rules (install with sudo); console capture must use a
+raw-mode `cat` (pyserial lost lines).  Open: FatFs file path on a FAT32 card,
+camera 2 image path (USER button).  Plan: ideas/OP-S10-W22_rev1_1_port_plan_for_lucian.md.

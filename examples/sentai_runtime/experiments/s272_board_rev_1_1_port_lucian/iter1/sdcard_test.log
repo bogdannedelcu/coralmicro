@@ -1,0 +1,19 @@
+SD Card Test Example
+====================
+
+Initializing SD card...
+[SDCard] Init: SUCCESS - Card initialized
+SD card initialized successfully!
+
+SD Card Information:
+  Manufacturer ID: 0x03
+  OEM ID: 0x5344
+  Product Name: SD64G
+  Bus: 4-bit, 49500000 Hz, timing mode 1
+Writing test pattern to block 1000...
+Reading back block 1000...
+Read successful
+
+SUCCESS: Data verification passed!
+
+Testing multi-block operations...

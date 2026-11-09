@@ -2,7 +2,7 @@
 
 **WBS**: OP-S10-W22-T11
 **Date**: 2026-11-09
-**Status**: analysis done, port not started (operator decides base + FatFs question below)
+**Status**: DONE 2026-11-09 — branch `lucian/board-rev-1.1` from `6448b25d`, FatFs API kept, tested on 58eb (EXP-s272). Decisions taken by the operator: base = his last commit here, keep FatFs, branch name `lucian/board-rev-1.1`, camera SDK patches included.
 
 ## 1. Question
 

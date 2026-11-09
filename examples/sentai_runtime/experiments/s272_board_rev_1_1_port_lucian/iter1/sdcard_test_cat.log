@@ -1,0 +1,38 @@
+SD Card Test Example
+====================
+
+Initializing SD card...
+[SDCard] Init: SD host configured (USDHC1 at 198000000 Hz)
+[SDCard] Init: SUCCESS - Card initialized
+SD card initialized successfully!
+
+SD Card Information:
+  Manufacturer ID: 0x03
+  OEM ID: 0x5344
+  Product Name: SD64G
+  Block Size: 512 bytes
+  Block Count: 124735488
+  Bus: 4-bit, 49500000 Hz, timing mode 1
+  Capacity: 60906 MiB (59.48 GiB)
+  Type: SDHC/SDXC
+
+Performing read/write test...
+Writing test pattern to block 1000...
+Write successful
+Reading back block 1000...
+Read successful
+
+SUCCESS: Data verification passed!
+SD card is working correctly.
+
+Testing multi-block operations...
+Writing 2 blocks starting at block 2000...
+Multi-block write successful
+Multi-block read successful
+Multi-block verification passed!
+
+=== Testing FAT32 Filesystem ===
+Mounting filesystem (FatFs drive 2:)...
+[SDCard] f_mount(2:) failed: 13
+ERROR: Failed to mount filesystem (not FAT32, or no partition table?)
+Formatting is OFF (kFormatIfMountFails): the card keeps its contents.
