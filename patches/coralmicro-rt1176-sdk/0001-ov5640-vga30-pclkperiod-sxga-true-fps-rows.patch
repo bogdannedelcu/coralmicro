@@ -1,5 +1,5 @@
 diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
-index b8d401e6..fde4604a 100644
+index b8d401e6..a5943973 100644
 --- a/components/video/camera/device/ov5640/fsl_ov5640.c
 +++ b/components/video/camera/device/ov5640/fsl_ov5640.c
 @@ -368,6 +368,20 @@ static const ov5640_reg_val_t ov5640InitParam[] = {
@@ -7,7 +7,7 @@ index b8d401e6..fde4604a 100644
  
  static const ov5640_resolution_param_t resolutionParam[] = {
 +    {
-+        /* sentai 2026-04-24: SXGA 1280x960, 2x2 binned from QSXGA.
++        /* local patch 2026-04-24: SXGA 1280x960, 2x2 binned from QSXGA.
 +         * Same bin-mode register values as VGA but output sized
 +         * 1280x960.  Provides 4x pixel count vs VGA at ~2x bandwidth
 +         * (binning keeps the read budget comparable).  Reg map:
@@ -27,7 +27,7 @@ index b8d401e6..fde4604a 100644
          .pclkPeriod  = 0x0a,
      },
      {
-+        /* sentai: pclkPeriod was 0x0a (identical to the 15-fps VGA row
++        /* local patch: pclkPeriod was 0x0a (identical to the 15-fps VGA row
 +         * above) — empirically that stalls continuous streaming after
 +         * the first frame.  Doubled to 0x14 so the MIPI T-HSSETTLE
 +         * window scales with the frame period, matching OmniVision
@@ -43,7 +43,7 @@ index b8d401e6..fde4604a 100644
 +        .pclkPeriod  = 0x14,
 +    },
 +    {
-+        /* sentai VGA @ 45 fps, 2nd attempt.  Linux kernel ov5640.c
++        /* local patch VGA @ 45 fps, 2nd attempt.  Linux kernel ov5640.c
 +         * documents the PLL clock tree (line ~1280 of that driver) with
 +         * constraint PLL_output in 500-1000 MHz range.  The 1st attempt
 +         * set pllCtrl1=0x0C, which decodes as sysdiv=0 — invalid per the
@@ -64,7 +64,7 @@ index b8d401e6..fde4604a 100644
 +        .pclkPeriod  = 0x0D,
 +    },
 +    {
-+        /* sentai 2026-04-25: VGA @ 90 fps, datasheet-supported max for
++        /* local patch 2026-04-25: VGA @ 90 fps, datasheet-supported max for
 +         * 640x480.  Pixel rate 27.6 MP/s = identical to 720P/30, which
 +         * in this driver uses pllCtrl1=0x21 / pllCtrl2=0x54.  Clone
 +         * those values + pclkPeriod 0x0a (datasheet-typical for the
@@ -80,7 +80,7 @@ index b8d401e6..fde4604a 100644
          .pclkPeriod  = 0x0a,
      },
 +    {
-+        /* sentai 2026-04-25: VGA @ 60 fps experiment.  Pixel rate
++        /* local patch 2026-04-25: VGA @ 60 fps experiment.  Pixel rate
 +         * 18.4 MP/s = 4/3 of VGA45 (13.8) and 2/3 of VGA90 (27.6).
 +         * Strategy: keep VGA45 sysdiv (pllCtrl1=0x14) + bump pllCtrl2
 +         * mult from 84 (0x54) to 112 (0x70) for ~4/3 lane rate.
@@ -104,8 +104,8 @@ index b8d401e6..fde4604a 100644
          .pclkDiv     = 0x04,
          .pclkPeriod  = 0x0a,
      },
-+    /* sentai 2026-04-24: SXGA 1280x960 clock configs (2x2 binned from QSXGA).
-+     * sentai 2026-11-01 (EXP-s260/s264, patch 0007): the original rows were
++    /* local patch 2026-04-24: SXGA 1280x960 clock configs (2x2 binned from QSXGA).
++     * local patch 2026-11-01 (EXP-s260/s264, patch 0007): the original rows were
 +     * cloned from the 720P/30 row (PLL 84x = 0x54), but the 1280x960 frame has
 +     * 984 lines (VTS) instead of 720p's ~740, so they streamed 22.6 and 11.2
 +     * frames/s (CSI CR3.FRMCNT) while being keyed 30 and 15.  Frame rate is

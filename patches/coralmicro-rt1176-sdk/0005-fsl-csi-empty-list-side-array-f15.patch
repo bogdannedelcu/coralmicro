@@ -1,5 +1,5 @@
 diff --git a/devices/MIMXRT1176/drivers/fsl_csi.c b/devices/MIMXRT1176/drivers/fsl_csi.c
-index bb6d120b..cc51026e 100644
+index bb6d120b..7ac30799 100644
 --- a/devices/MIMXRT1176/drivers/fsl_csi.c
 +++ b/devices/MIMXRT1176/drivers/fsl_csi.c
 @@ -114,7 +114,7 @@ static uint32_t CSI_TransferGetEmptyBuffer(csi_handle_t *handle);
@@ -15,7 +15,7 @@ index bb6d120b..cc51026e 100644
      return handle->emptyBufferCnt;
  }
  
-+/* sentai 2026-10-31 (audit F15): empty-buffer bookkeeping moved out of the
++/* Local patch 0005 (init_audit.md F15): empty-buffer bookkeeping moved out of the
 + * frame buffers into handle->emptyBufferStack (see fsl_csi.h).  Both helpers
 + * are bounds-checked; a violation is reported through the user hook (a
 + * counter in ISR context, never a fault) instead of dereferencing pixel
@@ -77,7 +77,7 @@ index bb6d120b..cc51026e 100644
  
  /*!
 diff --git a/devices/MIMXRT1176/drivers/fsl_csi.h b/devices/MIMXRT1176/drivers/fsl_csi.h
-index dd6f5c08..deaf7eaf 100644
+index dd6f5c08..09ac42df 100644
 --- a/devices/MIMXRT1176/drivers/fsl_csi.h
 +++ b/devices/MIMXRT1176/drivers/fsl_csi.h
 @@ -239,7 +239,14 @@ struct _csi_handle
@@ -85,7 +85,7 @@ index dd6f5c08..deaf7eaf 100644
      volatile uint8_t queueWriteIdx;  /*!< Pointer to save incoming item. */
      volatile uint8_t queueReadIdx;   /*!< Pointer to read out the item. */
 -    void *volatile emptyBuffer;      /*!< Pointer to maintain the empty frame buffers. */
-+    /* sentai 2026-10-31 (audit F15): the stock driver kept the empty
++    /* Local patch 0005 (init_audit.md F15): the stock driver kept the empty
 +     * buffers as a singly linked list threaded THROUGH the frame buffers
 +     * (the first word of each empty buffer held the next pointer).  A DMA
 +     * write into a buffer that was still on that list corrupted the link
