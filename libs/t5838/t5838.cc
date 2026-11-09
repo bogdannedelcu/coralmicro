@@ -4,7 +4,9 @@
  *        i.MX RT1176 / FreeRTOS (coralmicro platform).
  *
  * Fixed pin assignments:
- *   THSEL  = GPIO_SD_B1_03 → IOMUXC_GPIO_SD_B1_03_GPIO_MUX4_IO06 → GPIO4, pin 6
+ *   THSEL  = GPIO_AD_18 → IOMUXC_GPIO_AD_18_GPIO_MUX3_IO17 → GPIO3, pin 17
+ *            (board rev 1.1; legacy GPIO_SD_B1_03 behind
+ *            T5838_THSEL_LEGACY_SD_B1_03 -- that pad is USDHC1_DATA1 now)
  *   PDMCLK = GPIO_LPSR_00  → IOMUXC_GPIO_LPSR_00_MIC_CLK (normal, mux mode 1)
  *                           → IOMUXC_GPIO_LPSR_00_GPIO_MUX6_IO00 (bitbang, mux mode 5)
  *                           → GPIO6, pin 0
@@ -48,8 +50,15 @@ static constexpr uint16_t kEnterSleepHalfPeriodUs = 5;  // ~100 kHz
 /* ------------------------------------------------------------------ */
 /* Static member definitions                                            */
 /* ------------------------------------------------------------------ */
-/* THSEL:  GPIO_SD_B1_03 → GPIO_MUX4_IO06 → GPIO4, pin 6 */
+#ifdef T5838_THSEL_LEGACY_SD_B1_03
+/* THSEL:  GPIO_SD_B1_03 → GPIO_MUX4_IO06 → GPIO4, pin 6 (original Coral) */
 GPIO_Type* const T5838Aad::kThselBase = GPIO4;
+#define T5838_THSEL_PAD IOMUXC_GPIO_SD_B1_03_GPIO_MUX4_IO06
+#else
+/* THSEL:  GPIO_AD_18 → GPIO_MUX3_IO17 → GPIO3, pin 17 (board rev 1.1) */
+GPIO_Type* const T5838Aad::kThselBase = GPIO3;
+#define T5838_THSEL_PAD IOMUXC_GPIO_AD_18_GPIO_MUX3_IO17
+#endif
 
 /* PDMCLK: GPIO_LPSR_00 → GPIO_MUX6_IO00 → GPIO6, pin 0 */
 GPIO_Type* const T5838Aad::kClkBase = GPIO6;
@@ -157,8 +166,8 @@ bool T5838Aad::AadModeSet(const AddrDataPair* write_array, size_t count) {
 
 bool T5838Aad::Init() {
     /* THSEL: configure IOMUXC and GPIO */
-    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_03_GPIO_MUX4_IO06, 0U);
-    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_03_GPIO_MUX4_IO06, 0x00U);
+    IOMUXC_SetPinMux(T5838_THSEL_PAD, 0U);
+    IOMUXC_SetPinConfig(T5838_THSEL_PAD, 0x00U);
     const gpio_pin_config_t out_low = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
     GPIO_PinInit(kThselBase, kThselPin, &out_low);
 

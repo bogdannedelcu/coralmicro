@@ -18,6 +18,7 @@
 
 #include "libs/pmic/pmic.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dmamux.h"
 
 extern "C" void PDM_ERROR_IRQHandler() {
@@ -59,6 +60,12 @@ std::optional<AudioSampleRate> CheckSampleRate(int sample_rate_hz) {
 void AudioDriver::PdmCallback(PDM_Type* base, pdm_edma_handle_t* handle,
                               status_t status) {
   auto& pdm_transfer = pdm_transfers_[pdm_transfer_index_];
+
+  // Invalidate D-cache for this DMA buffer — the EDMA engine wrote directly
+  // to memory, bypassing the CPU cache.  Without this, the CPU would read
+  // stale (zero) data when the buffers reside in cacheable SDRAM.
+  DCACHE_InvalidateByRange(reinterpret_cast<uint32_t>(pdm_transfer.data),
+                           pdm_transfer.dataSize);
 
   fn_(ctx_,
       const_cast<int32_t*>(
@@ -148,6 +155,14 @@ bool AudioDriver::Enable(const AudioDriverConfig& config, void* ctx,
     printf("ERROR: PDM_TransferReceiveEDMA() failed.\r\n");
     return false;
   }
+
+  // Flush CPU D-cache for all DMA-accessible structures so the EDMA engine
+  // reads correct scatter-gather TCD chain and transfer descriptors from
+  // memory.  Required when these structures reside in cacheable SDRAM.
+  DCACHE_CleanByRange(reinterpret_cast<uint32_t>(edma_tcd_),
+                      pdm_transfer_count_ * sizeof(edma_tcd_t));
+  DCACHE_CleanByRange(reinterpret_cast<uint32_t>(dma_buffer_),
+                      combined_dma_buffer_size_ * sizeof(int32_t));
 
   return true;
 }

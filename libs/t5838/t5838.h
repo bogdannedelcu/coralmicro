@@ -9,7 +9,12 @@
  * THSEL (data) + PDMCLK (clock) for AAD register configuration.
  *
  * Fixed pin assignments (configured automatically by Init()):
- *   THSEL  = GPIO_SD_B1_03 → GPIO_MUX4_IO06 → GPIO4, pin 6
+ *   THSEL  = GPIO_AD_18 → GPIO_MUX3_IO17 → GPIO3, pin 17   (board rev 1.1,
+ *            sheet 12: GPIO_AD_18 -> TP4 -> T5838 pin 5 THSEL; WAKE goes to the
+ *            WAKEUP pad through Q1 and is not driven by firmware.  GPIO_AD_19
+ *            is tied to MIC_CLK through R54 0 R -- never drive it as GPIO.)
+ *            The original Coral board had THSEL on GPIO_SD_B1_03, which is
+ *            USDHC1_DATA1 on this rev -- see T5838_THSEL_LEGACY_SD_B1_03.
  *   PDMCLK = GPIO_LPSR_00  → GPIO_MUX6_IO00 → GPIO6, pin 0
  *            (normal PDM function: IOMUXC_GPIO_LPSR_00_MIC_CLK, mux mode 1)
  *            (bitbang GPIO mode:   IOMUXC_GPIO_LPSR_00_GPIO_MUX6_IO00, mux mode 5)
@@ -210,9 +215,15 @@ class T5838Aad {
     bool AadModeSet(const AddrDataPair* write_array, size_t count);
     void SwitchClkToGpio();
 
-    /* THSEL:  GPIO_SD_B1_03 → GPIO_MUX4_IO06 → GPIO4, pin 6 */
+    /* THSEL: GPIO_AD_18 → GPIO_MUX3_IO17 → GPIO3, pin 17 (board rev 1.1).
+     * Define T5838_THSEL_LEGACY_SD_B1_03 to build for the original Coral
+     * Dev Board Micro pinout (GPIO_SD_B1_03 → GPIO4, pin 6). */
     static GPIO_Type* const kThselBase;
+#ifdef T5838_THSEL_LEGACY_SD_B1_03
     static constexpr uint32_t kThselPin = 6u;
+#else
+    static constexpr uint32_t kThselPin = 17u;
+#endif
 
     /* PDMCLK: GPIO_LPSR_00 → GPIO_MUX6_IO00 → GPIO6, pin 0 */
     static GPIO_Type* const kClkBase;
