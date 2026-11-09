@@ -2,7 +2,7 @@
 
 **WBS**: OP-S10-W22-T11
 **Started**: 2026-11-09
-**Status**: ✅ iter1 PASS on the bench (SD block path, LIS2DUX12, both cameras detected, camera-1 frames over USB HTTP); FatFs file path still to be run on a FAT32 card
+**Status**: ✅ iter1 PASS on the bench (SD block + FatFs file path incl. format, LIS2DUX12, both cameras detected, camera-1 frames over USB HTTP)
 
 ## Claim
 
@@ -62,15 +62,36 @@ To get back from a RAM-loaded vendor example to the ROM: open `/dev/ttyACM0` at
 
 | Iter | Hypothesis / change | Result | Pass? |
 |---|---|---|---|
-| iter1 | port as planned, tested on 58eb with `--ram` | SD init 4-bit 49.5 MHz, block tests pass + restore; LIS2DUX12 0x47 @0x19, Z −977 mg; both cameras detected, cam0 JPEG of the monitor over `10.0.0.1/camera_stream` | ✅ (FatFs file path pending: card is FileX) |
+| iter1 | port as planned, tested on 58eb with `--ram` | SD init 4-bit 49.5 MHz, block tests pass + restore; FatFs: format + files + 2 MiB write 8.0 MB/s / read 30.3 MB/s (operator accepted the format; card backed up and restored over MSC); LIS2DUX12 0x47 @0x19, Z −977 mg; both cameras detected, cam0 JPEG of the monitor over `10.0.0.1/camera_stream` | ✅ |
 
 ## iter1 — findings
 
 - **SD** (`iter1/sdcard_test_cat.log`): 64 GB card (SD64G, MID 0x03), 124735488
   blocks, 4-bit at 49.5 MHz; single and multi-block write/read verified, blocks
   restored; `f_mount("2:")` → FR_NO_FILESYSTEM (13) as expected on the FileX
-  card, format left OFF (`kFormatIfMountFails`).  The FatFs file/benchmark part
-  needs a FAT32 card (or a card you allow to be formatted).
+  card, format left OFF (`kFormatIfMountFails`).
+- **FatFs file path** (`iter1/sdcard_test_format_fat32.log`, build with
+  `-DSDCARD_TEST_FORMAT=ON`, operator accepted the format): `f_mkfs` FAT32 →
+  mount → text file written/read back, 256 B binary verified, 2 MiB sequential
+  write 8.0 MB/s, read 30.3 MB/s, data verified, unmount.  `f_mkfs` writes an
+  MBR with one 0x0C partition (volume in `/dev/sdc1` on the host); the SentAI
+  FileX mounts that volume unchanged (it listed the test files at the next
+  boot), so the two firmwares can share a FatFs-formatted card.
+- **Why the FileX card gave FR_NO_FILESYSTEM** (`iter1/filex_boot_sector.bin`):
+  the FileX volume is plain FAT32 (OEM "EL FILEX", 1 FAT, 64 sectors/cluster,
+  no partition table) but its boot sector leaves the `BS_FilSysType32` string
+  (offset 0x52, "FAT32   ") empty; this FatFs version's `check_fs()` requires
+  the "FAT" signature there and reports "valid boot sector, not FAT".  Linux
+  mounts the FileX volume fine (blkid: vfat FAT32, label SENTAI).
+- **Card backup/restore**: `sentai.usb.drive(1)` exposes the raw card as USB
+  mass storage; udisks mounts it under `/run/media/bogdan/<id>`; `rsync -a` of
+  the 48 entries (35 MB: models, cam regs, lib/diag, refs640, experiment
+  images) to `/home/bogdan/work/sdcard_backups/58eb_20261109/files/` verified
+  with `diff -rq`; restored the same way onto the FatFs partition after the
+  test (FileX saw all files, `camera.init()` loaded the regs).  Lesson: after a
+  format the volume moved from `/dev/sdc` to `/dev/sdc1` and the first restore
+  attempt resolved an EMPTY mountpoint — rsync then targeted the host `/` and
+  only failed on permissions.  Always guard the mountpoint before `rsync`.
 - **LIS2DUX12** (`iter1/lis2dux12_test.log`): on this unit the part answered at
   **0x19** (0x18 NAK, WHO_AM_I 0x00) — the opposite of the cold power-up seen on
   2026-10-31 (0x18); both addresses stay in the probe.  Z ≈ −977 mg (board
@@ -99,3 +120,6 @@ To get back from a RAM-loaded vendor example to the ROM: open `/dev/ttyACM0` at
   once 0007 was in.  Merged both into one patch per file set.
 - Patch 0005 references `coralmicro_csi_on_queue_fault()` (defined in the SentAI
   camera code): the branch's copy of the patch carries a weak no-op default.
+- pyserial / non-blocking readers lost console lines; raw-mode `cat` did not.
+- Restore with an unguarded (empty) mountpoint: rsync aimed at host `/`
+  (blocked by permissions, nothing changed).

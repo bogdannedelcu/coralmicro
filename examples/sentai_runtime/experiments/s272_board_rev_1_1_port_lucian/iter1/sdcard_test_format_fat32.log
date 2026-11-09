@@ -1,0 +1,71 @@
+SD Card Test Example
+====================
+
+Initializing SD card...
+[SDCard] Init: SD host configured (USDHC1 at 198000000 Hz)
+[SDCard] Init: SUCCESS - Card initialized
+SD card initialized successfully!
+
+SD Card Information:
+  Bus: 4-bit, 49500000 Hz, timing mode 1
+  Capacity: 60906 MiB (59.48 GiB)
+  Type: SDHC/SDXC
+
+Performing read/write test...
+Writing test pattern to block 1000...
+Write successful
+Reading back block 1000...
+
+SUCCESS: Data verification passed!
+SD card is working correctly.
+
+Testing multi-block operations...
+Writing 2 blocks starting at block 2000...
+Multi-block write successful
+Multi-block read successful
+Multi-block verification passed!
+
+=== Testing FAT32 Filesystem ===
+Mounting filesystem (FatFs drive 2:)...
+[SDCard] f_mount(2:) failed: 13
+ERROR: Failed to mount filesystem (not FAT32, or no partition table?)
+Attempting format...
+Format successful! Trying mount again...
+Filesystem mounted successfully!
+
+Writing test file 2:/test.txt...
+File written successfully
+Reading back 2:/test.txt...
+File contents:
+---
+Hello from Coral Dev Board Micro rev 1.1!
+This is a test file on the SD card.
+Timestamp: 6985
+---
+File read successfully
+
+Testing binary file operations...
+Wrote 256 bytes to binary.dat
+Read 256 bytes from binary.dat
+Binary file verification: PASSED
+
+=== Performance Benchmark ===
+Buffer size: 2097152 bytes (2.00 MB)
+Filling buffer with test pattern...
+
+Write speed test...
+Write: 2097152 bytes in 250 ms (8.00 MB/s)
+
+Read speed test...
+Read: 2097152 bytes in 66 ms (30.30 MB/s)
+
+Verifying data integrity...
+Data verification: PASSED
+
+Unmounting filesystem...
+Filesystem unmounted successfully
+
+Deinitializing SD card...
+
+=== All Tests Complete! ===
+SD card with FAT32 filesystem is working correctly.
