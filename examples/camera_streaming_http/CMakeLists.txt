@@ -16,7 +16,7 @@ set(CAMERA_STREAMING_LINK_LIBRARIES
     libs_base-m7_freertos
     libs_base-m7_http_server
     libs_jpeg_m7
-    libs_lis2du12_freertos
+    libs_lis2dux12_freertos
     libs_t5838_freertos
 )
 

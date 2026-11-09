@@ -30,6 +30,7 @@ add_subdirectory(flatbuffers)
 add_subdirectory(gemmlowp)
 add_subdirectory(kissfft)
 add_subdirectory(lis2du12)
+add_subdirectory(lis2dux12)   # board rev 1.1 accelerometer
 add_subdirectory(libjpeg)
 add_subdirectory(littlefs)
 add_subdirectory(mjson)

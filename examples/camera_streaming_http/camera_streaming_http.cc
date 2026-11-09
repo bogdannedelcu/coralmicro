@@ -38,7 +38,7 @@
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_lp.h"
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
-#include "libs/lis2du12/lis2du12.h"
+#include "libs/lis2dux12/lis2dux12.h"
 #include "libs/pmic/pmic.h"
 #include "libs/base/i2c.h"
 #include "libs/t5838/t5838.h"
@@ -571,23 +571,35 @@ static void PmicStatusTask(void*) {
 
 void AccelTask(void* param) {
   (void)param;
-  Lis2du12 g_accel;
+  Lis2dux12 g_accel;
 
-  printf("[AccelTask] Starting LIS2DU12 accelerometer task\r\n");
+  printf("[AccelTask] Starting LIS2DUX12 accelerometer task\r\n");
 
-  if (!g_accel.Init(I2C5Handle(), 0x19)) {
-    printf("[AccelTask] ERROR: LIS2DU12 init failed\r\n");
+  // Board rev 1.1: LIS2DUX12 on I2C5.  It powers up in deep power-down and
+  // the units seen so far answer at 0x18 although the SA0 strap reads 0x19;
+  // try both, a few rounds apart (docs/board_rev_1_1/init_audit.md F18).
+  bool imu_ok = false;
+  static const uint8_t kAddrs[2] = {0x18, 0x19};
+  for (int round = 0; round < 3 && !imu_ok; ++round) {
+    for (uint8_t addr : kAddrs) {
+      if (g_accel.Init(I2C5Handle(), addr)) {
+        printf("[AccelTask] LIS2DUX12 ready at 0x%02X\r\n", addr);
+        imu_ok = true;
+        break;
+      }
+    }
+    if (!imu_ok) vTaskDelay(pdMS_TO_TICKS(30));
+  }
+  if (!imu_ok) {
+    printf("[AccelTask] ERROR: LIS2DUX12 init failed (0x18 / 0x19)\r\n");
     vTaskSuspend(nullptr);
   }
 
   AccelData data;
-  // Check if a wake-up event occurred
-  lis2du12_all_sources_t sources{};
-  if (lis2du12_all_sources_get(g_accel.GetDevCtx(), &sources) == 0 &&
-      sources.wake_up) {
-    printf("[AccelTask] Wake-up detected! x=%d y=%d z=%d\r\n",
-            sources.wake_up_x, sources.wake_up_y, sources.wake_up_z);
-    g_accel.ClearWakeUpInterrupt();
+  // Check if a wake-up event occurred (read-clears the event sources)
+  Lis2dux12::EventSources sources{};
+  if (g_accel.PollEvents(&sources) && sources.wake_up) {
+    printf("[AccelTask] Wake-up detected!\r\n");
   }
 
 #if 1
