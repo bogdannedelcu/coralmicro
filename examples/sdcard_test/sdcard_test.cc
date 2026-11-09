@@ -46,6 +46,11 @@ SDK_ALIGN(uint8_t read_buffer[512], 32);
 SDK_ALIGN(uint8_t saved_blocks[1024], 32);  // 2 blocks
 
 void Main() {
+  // The USB CDC console drops output while no host terminal is attached and
+  // this test prints everything in its first seconds: give the host time to
+  // open the port after enumeration.
+  vTaskDelay(pdMS_TO_TICKS(3000));
+
   printf("SD Card Test Example\r\n");
   printf("====================\r\n\r\n");
 
@@ -85,8 +90,10 @@ void Main() {
     printf("  Block Count: %lu\r\n", (unsigned long)info.block_count);
     printf("  Bus: %u-bit, %lu Hz, timing mode %u\r\n", info.bus_width,
            (unsigned long)info.bus_clock_hz, info.timing_mode);
-    printf("  Capacity: %llu bytes (%.2f MB)\r\n", info.capacity_bytes,
-           static_cast<double>(info.capacity_bytes) / (1024.0 * 1024.0));
+    // (no %llu in this newlib build: print MiB / GiB as doubles)
+    printf("  Capacity: %.0f MiB (%.2f GiB)\r\n",
+           static_cast<double>(info.capacity_bytes) / (1024.0 * 1024.0),
+           static_cast<double>(info.capacity_bytes) / (1024.0 * 1024.0 * 1024.0));
     printf("  Type: %s\r\n", info.is_high_capacity ? "SDHC/SDXC" : "SDSC");
     printf("\r\n");
   } else {

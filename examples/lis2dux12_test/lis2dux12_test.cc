@@ -38,6 +38,11 @@ int InitImu() {
 }
 
 void Main() {
+  // The USB CDC console drops output while no host terminal is attached and
+  // this test prints everything in its first seconds: give the host time to
+  // open the port after enumeration.
+  vTaskDelay(pdMS_TO_TICKS(3000));
+
   printf("LIS2DUX12 Test Example (board rev 1.1)\r\n");
   printf("======================================\r\n\r\n");
   LedSet(Led::kStatus, true);

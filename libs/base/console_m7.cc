@@ -165,7 +165,13 @@ void ConsoleM7::M7ConsoleTaskTxFn(void* param) {
     ConsoleMessage msg;
     if (xQueueReceive(console_queue_, &msg, portMAX_DELAY) == pdTRUE) {
       DbgConsole_SendDataReliable(msg.str, msg.len);
-      cdc_acm_.Transmit(msg.str, msg.len);
+      // The CDC send fails while the previous bulk-IN transfer is still in
+      // flight (host reading slowly); one attempt per message dropped whole
+      // lines of a fast printf burst.  Retry a few times before giving up.
+      for (int attempt = 0; attempt < 3; ++attempt) {
+        if (cdc_acm_.Transmit(msg.str, msg.len)) break;
+        vTaskDelay(pdMS_TO_TICKS(10));
+      }
       // Mirror to TCP log pipe if registered; non-blocking — drops if full.
       StreamBufferHandle_t pipe = log_pipe_;
       if (pipe) {
@@ -212,7 +218,7 @@ void ConsoleM7::Init(bool init_tx, bool init_rx) {
       std::bind(&coralmicro::CdcAcm::HandleEvent, &cdc_acm_, _1, _2),
       cdc_acm_.descriptor_data(), cdc_acm_.descriptor_data_size());
 
-  console_queue_ = xQueueCreate(16, sizeof(ConsoleMessage));
+  console_queue_ = xQueueCreate(64, sizeof(ConsoleMessage));
   CHECK(console_queue_);
 
   rx_mutex_ = xSemaphoreCreateMutex();
