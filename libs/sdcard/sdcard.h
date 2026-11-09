@@ -31,12 +31,15 @@ struct SDCardInfo {
   uint8_t manufacturer_id; // Card manufacturer ID
   uint16_t oem_id;         // OEM/Application ID
   char product_name[6];    // Product name string (5 chars + null terminator)
+  uint32_t bus_clock_hz;   // Current SD bus clock (host-side), e.g. 50000000 in HS
+  uint8_t timing_mode;     // sd_timing_mode_t: 0 SDR12/default, 1 SDR25 high speed, 2 SDR50, 3 SDR104, 4 DDR50
+  uint8_t bus_width;       // 1 or 4 data lines
 };
 
-// Provides access to the microSD card interface.
+// microSD card on USDHC1 (board rev 1.1): block-level access plus a FatFs
+// volume on logical drive "2:" (Mount/Unmount/Format).
 //
-// This class provides a simple interface for reading and writing blocks
-// to/from an SD card connected to the USDHC1 interface.
+// Init() needs the FreeRTOS scheduler running (USDHC host uses OSA events).
 //
 // Example usage:
 // ```
@@ -62,7 +65,17 @@ class SDCard {
   // pins, detects the card, and performs SD card initialization sequence.
   //
   // @return True if initialization succeeds, false otherwise.
+  // Bounded: equivalent to InitBounded(kInitDeadlineMs) == 1.
   static bool Init();
+
+  // Bounded init (docs/board_rev_1_1/init_audit.md F14): SD_Init() has no deadline of its own and never
+  // returns on an empty socket / unwired USDHC, so it runs in a dedicated
+  // worker task (static stack, no heap) and the caller waits at most
+  // `deadline_ms`.  Returns 1 = card initialised, 0 = SD_Init failed,
+  // -1 = deadline exceeded (worker still running; a later call returns its
+  // result once it finishes), -2 = a previous init is still running.
+  static int InitBounded(uint32_t deadline_ms);
+  static constexpr uint32_t kInitDeadlineMs = 5000;
 
   // Deinitializes the SD card interface and powers down the card.
   static void Deinit();
@@ -120,39 +133,36 @@ class SDCard {
   // @return True if erase succeeds, false otherwise.
   static bool EraseBlocks(uint32_t start_block, uint32_t block_count);
 
-  // Mounts the FAT filesystem on the SD card.
-  //
-  // This enables file operations using standard POSIX functions (fopen, fwrite,
-  // fread, etc.) with the mount point as the path prefix.
+  // Progress breadcrumb of the last Init() (1..10 host/card steps, 100 =
+  // worker entered); for diagnosing an init that never returns.
+  static uint32_t InitStage();
+
+  // FatFs drive prefix of the card ("2:"); use it in f_open() paths.
+  static const char* FatFsDrive();
+
+  // Mounts the FAT filesystem on the SD card (FatFs logical drive "2:").
+  // The mount point is informational; FatFs paths are "2:/name".
   //
   // Example:
   // ```
   // SDCard::Mount("/sd");
-  // FILE* f = fopen("/sd/test.txt", "w");
-  // fprintf(f, "Hello World!\n");
-  // fclose(f);
+  // FIL f;
+  // f_open(&f, "2:/test.txt", FA_WRITE | FA_CREATE_ALWAYS);
+  // ...
   // SDCard::Unmount();
   // ```
   //
-  // @param mount_point The mount point path (e.g., "/sd"). Must start with "/".
+  // @param mount_point Path that must start with "/" (e.g. "/sd").
   // @return True if mount succeeds, false otherwise.
   static bool Mount(const char* mount_point);
 
   // Unmounts the FAT filesystem.
-  //
-  // @return True if unmount succeeds, false otherwise.
   static bool Unmount();
 
   // Checks if the filesystem is currently mounted.
-  //
-  // @return True if mounted, false otherwise.
   static bool IsMounted();
 
-  // Formats the SD card with FAT32 filesystem.
-  //
-  // WARNING: This will erase all data on the SD card!
-  //
-  // @return True if format succeeds, false otherwise.
+  // Formats the SD card with FAT32.  WARNING: erases all data on the card!
   static bool Format();
 };
 

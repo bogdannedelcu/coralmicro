@@ -76,8 +76,11 @@
 / Drive/Volume Configurations
 /---------------------------------------------------------------------------*/
 
-#define FF_VOLUMES		1
-/* Number of volumes (logical drives) */
+#define FF_VOLUMES		3
+/* Number of volumes (logical drives).  Must be > SDDISK (= 2, diskio.h): with
+   FF_MULTI_PARTITION = 0 logical drive N maps to physical drive N, so the SD
+   card is reachable only as "2:".  With 1 every f_mount() landed on RAMDISK
+   (not compiled in) and failed FR_NOT_READY. */
 
 #define FF_STR_VOLUME_ID	0
 /* Numeric drive ID */

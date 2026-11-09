@@ -23,6 +23,7 @@
 #include "libs/base/led.h"
 #include "libs/base/main_freertos_m7.h"
 #include "libs/sdcard/sdcard.h"
+#include "third_party/nxp/rt1176-sdk/middleware/fatfs/source/ff.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 
@@ -175,7 +176,7 @@ void Main() {
   // Test filesystem operations
   printf("\r\n=== Testing FAT32 Filesystem ===\r\n");
 
-  printf("Mounting filesystem at /sd...\r\n");
+  printf("Mounting filesystem (FatFs drive %s)...\r\n", SDCard::FatFsDrive());
   if (!SDCard::Mount("/sd")) {
     printf("ERROR: Failed to mount filesystem\r\n");
     printf("The SD card may need to be formatted. Attempting format...\r\n");
@@ -198,34 +199,45 @@ void Main() {
 
   printf("Filesystem mounted successfully!\r\n");
 
+  // FatFs file API (there is no newlib/stdio bridge to FatFs in this tree,
+  // so fopen("/sd/...") cannot work; paths carry the FatFs drive prefix).
+  char path[32];
+
   // Test file creation and writing
-  printf("\r\nWriting test file /sd/test.txt...\r\n");
-  FILE* f = fopen("/sd/test.txt", "w");
-  if (f) {
-    fprintf(f, "Hello from Coral Dev Board Micro!\r\n");
-    fprintf(f, "This is a test file on the SD card.\r\n");
-    fprintf(f, "Timestamp: %d\r\n", static_cast<int>(xTaskGetTickCount()));
-    fclose(f);
-    printf("File written successfully\r\n");
-  } else {
-    printf("ERROR: Failed to create file\r\n");
+  snprintf(path, sizeof(path), "%s/test.txt", SDCard::FatFsDrive());
+  printf("\r\nWriting test file %s...\r\n", path);
+  {
+    FIL f;
+    FRESULT fr = f_open(&f, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (fr == FR_OK) {
+      f_printf(&f, "Hello from Coral Dev Board Micro rev 1.1!\r\n");
+      f_printf(&f, "This is a test file on the SD card.\r\n");
+      f_printf(&f, "Timestamp: %d\r\n", static_cast<int>(xTaskGetTickCount()));
+      f_close(&f);
+      printf("File written successfully\r\n");
+    } else {
+      printf("ERROR: Failed to create file (FRESULT %d)\r\n", (int)fr);
+    }
   }
 
   // Test file reading
-  printf("Reading back /sd/test.txt...\r\n");
-  f = fopen("/sd/test.txt", "r");
-  if (f) {
-    char line[128];
-    printf("File contents:\r\n");
-    printf("---\r\n");
-    while (fgets(line, sizeof(line), f)) {
-      printf("%s", line);
+  printf("Reading back %s...\r\n", path);
+  {
+    FIL f;
+    FRESULT fr = f_open(&f, path, FA_READ);
+    if (fr == FR_OK) {
+      char line[128];
+      printf("File contents:\r\n");
+      printf("---\r\n");
+      while (f_gets(line, sizeof(line), &f)) {
+        printf("%s", line);
+      }
+      printf("---\r\n");
+      f_close(&f);
+      printf("File read successfully\r\n");
+    } else {
+      printf("ERROR: Failed to open file for reading (FRESULT %d)\r\n", (int)fr);
     }
-    printf("---\r\n");
-    fclose(f);
-    printf("File read successfully\r\n");
-  } else {
-    printf("ERROR: Failed to open file for reading\r\n");
   }
 
   // Test binary file write/read
@@ -234,112 +246,95 @@ void Main() {
   for (int i = 0; i < 256; ++i) {
     bin_data[i] = static_cast<uint8_t>(i);
   }
+  snprintf(path, sizeof(path), "%s/binary.dat", SDCard::FatFsDrive());
+  {
+    FIL f;
+    UINT written = 0, read = 0;
+    if (f_open(&f, path, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+      f_write(&f, bin_data, sizeof(bin_data), &written);
+      f_close(&f);
+      printf("Wrote %u bytes to binary.dat\r\n", (unsigned)written);
 
-  f = fopen("/sd/binary.dat", "wb");
-  if (f) {
-    size_t written = fwrite(bin_data, 1, sizeof(bin_data), f);
-    fclose(f);
-    printf("Wrote %zu bytes to binary.dat\r\n", written);
-
-    // Read it back
-    SDK_ALIGN(uint8_t read_data[256], 32);
-    f = fopen("/sd/binary.dat", "rb");
-    if (f) {
-      size_t read = fread(read_data, 1, sizeof(read_data), f);
-      fclose(f);
-      printf("Read %zu bytes from binary.dat\r\n", read);
-
-      // Verify
-      bool match = (read == sizeof(bin_data)) &&
-                   (std::memcmp(bin_data, read_data, sizeof(bin_data)) == 0);
-      if (match) {
-        printf("Binary file verification: PASSED\r\n");
-      } else {
-        printf("Binary file verification: FAILED\r\n");
+      SDK_ALIGN(uint8_t read_data[256], 32);
+      if (f_open(&f, path, FA_READ) == FR_OK) {
+        f_read(&f, read_data, sizeof(read_data), &read);
+        f_close(&f);
+        printf("Read %u bytes from binary.dat\r\n", (unsigned)read);
+        bool match = (read == sizeof(bin_data)) &&
+                     (std::memcmp(bin_data, read_data, sizeof(bin_data)) == 0);
+        printf("Binary file verification: %s\r\n", match ? "PASSED" : "FAILED");
       }
+    } else {
+      printf("ERROR: Failed to create binary.dat\r\n");
     }
   }
 
-  // Performance benchmark: 1080p ARGB8888 image write/read speed
+  // Performance benchmark: large sequential write/read through FatFs
   printf("\r\n=== Performance Benchmark ===\r\n");
-  printf("Testing write/read speed for 1080p ARGB8888 image\r\n");
-
-  // 1080p ARGB8888: 1920 x 1080 x 4 bytes = 8,294,400 bytes (~8.3 MB)
-  const size_t image_size = 1920 * 1080 * 4;
-  printf("Image size: %zu bytes (%.2f MB)\r\n", image_size,
+  // 2 MiB per buffer (a 1080p XRGB frame is 8.3 MB; two of those do not fit
+  // the FreeRTOS heap of the vendor examples).
+  const size_t image_size = 2u * 1024u * 1024u;
+  printf("Buffer size: %u bytes (%.2f MB)\r\n", (unsigned)image_size,
          static_cast<double>(image_size) / (1024.0 * 1024.0));
+  snprintf(path, sizeof(path), "%s/bench.raw", SDCard::FatFsDrive());
 
-  // Allocate buffer (use malloc for large buffer to avoid stack overflow)
   uint8_t* image_buffer = static_cast<uint8_t*>(pvPortMalloc(image_size));
   if (!image_buffer) {
-    printf("ERROR: Failed to allocate %zu bytes for image buffer\r\n", image_size);
+    printf("ERROR: Failed to allocate %u bytes for image buffer\r\n", (unsigned)image_size);
   } else {
-    // Fill buffer with test pattern (simulating image data)
     printf("Filling buffer with test pattern...\r\n");
     for (size_t i = 0; i < image_size; ++i) {
       image_buffer[i] = static_cast<uint8_t>((i * 7 + 123) & 0xFF);
     }
 
-    // Write speed test
     printf("\r\nWrite speed test...\r\n");
-    TickType_t write_start = xTaskGetTickCount();
-
-    f = fopen("/sd/image_1080p.raw", "wb");
-    if (f) {
-      size_t written = fwrite(image_buffer, 1, image_size, f);
-      fclose(f);
-
-      TickType_t write_end = xTaskGetTickCount();
-      uint32_t write_ms = (write_end - write_start) * portTICK_PERIOD_MS;
-
-      if (written == image_size) {
-        double write_speed_mbps = (static_cast<double>(image_size) / (1024.0 * 1024.0)) /
-                                   (static_cast<double>(write_ms) / 1000.0);
-        printf("Write: %zu bytes in %u ms (%.2f MB/s)\r\n",
-               written, write_ms, write_speed_mbps);
+    {
+      FIL f;
+      UINT written = 0;
+      TickType_t write_start = xTaskGetTickCount();
+      if (f_open(&f, path, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        f_write(&f, image_buffer, image_size, &written);
+        f_close(&f);
+        uint32_t write_ms = (xTaskGetTickCount() - write_start) * portTICK_PERIOD_MS;
+        if (written == image_size) {
+          double mbps = (static_cast<double>(image_size) / (1024.0 * 1024.0)) /
+                        (static_cast<double>(write_ms) / 1000.0);
+          printf("Write: %u bytes in %u ms (%.2f MB/s)\r\n", (unsigned)written,
+                 (unsigned)write_ms, mbps);
+        } else {
+          printf("ERROR: Only wrote %u of %u bytes\r\n", (unsigned)written, (unsigned)image_size);
+        }
       } else {
-        printf("ERROR: Only wrote %zu of %zu bytes\r\n", written, image_size);
+        printf("ERROR: Failed to open file for writing\r\n");
       }
-    } else {
-      printf("ERROR: Failed to open file for writing\r\n");
     }
 
-    // Read speed test
     printf("\r\nRead speed test...\r\n");
     uint8_t* read_buffer = static_cast<uint8_t*>(pvPortMalloc(image_size));
     if (!read_buffer) {
       printf("ERROR: Failed to allocate read buffer\r\n");
     } else {
+      FIL f;
+      UINT read_size = 0;
       TickType_t read_start = xTaskGetTickCount();
-
-      f = fopen("/sd/image_1080p.raw", "rb");
-      if (f) {
-        size_t read_size = fread(read_buffer, 1, image_size, f);
-        fclose(f);
-
-        TickType_t read_end = xTaskGetTickCount();
-        uint32_t read_ms = (read_end - read_start) * portTICK_PERIOD_MS;
-
+      if (f_open(&f, path, FA_READ) == FR_OK) {
+        f_read(&f, read_buffer, image_size, &read_size);
+        f_close(&f);
+        uint32_t read_ms = (xTaskGetTickCount() - read_start) * portTICK_PERIOD_MS;
         if (read_size == image_size) {
-          double read_speed_mbps = (static_cast<double>(image_size) / (1024.0 * 1024.0)) /
-                                    (static_cast<double>(read_ms) / 1000.0);
-          printf("Read: %zu bytes in %u ms (%.2f MB/s)\r\n",
-                 read_size, read_ms, read_speed_mbps);
-
-          // Verify data integrity
+          double mbps = (static_cast<double>(image_size) / (1024.0 * 1024.0)) /
+                        (static_cast<double>(read_ms) / 1000.0);
+          printf("Read: %u bytes in %u ms (%.2f MB/s)\r\n", (unsigned)read_size,
+                 (unsigned)read_ms, mbps);
           printf("\r\nVerifying data integrity...\r\n");
-          if (std::memcmp(image_buffer, read_buffer, image_size) == 0) {
-            printf("Data verification: PASSED\r\n");
-          } else {
-            printf("Data verification: FAILED\r\n");
-          }
+          printf("Data verification: %s\r\n",
+                 std::memcmp(image_buffer, read_buffer, image_size) == 0 ? "PASSED" : "FAILED");
         } else {
-          printf("ERROR: Only read %zu of %zu bytes\r\n", read_size, image_size);
+          printf("ERROR: Only read %u of %u bytes\r\n", (unsigned)read_size, (unsigned)image_size);
         }
       } else {
         printf("ERROR: Failed to open file for reading\r\n");
       }
-
       vPortFree(read_buffer);
     }
 
