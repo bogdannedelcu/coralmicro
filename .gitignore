@@ -76,3 +76,7 @@ dataset/TD-S10-B*/whycon_gazebo_synth_*/_work/
 dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/detected_overlays/
 dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/sentai_detected_overlays/
 dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/debug_*.png
+
+# s265 full REPL transcripts > 100 MB (GitHub limit); kept on disk only, summarised in each iter README
+examples/sentai_runtime/experiments/s265_camera_color_calibration/iter3_kamvas/tune_repl.log
+examples/sentai_runtime/experiments/s265_camera_color_calibration/iter5_philips_landscape/tune_repl.log
