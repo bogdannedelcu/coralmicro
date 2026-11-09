@@ -1,0 +1,98 @@
+diff --git a/devices/MIMXRT1176/drivers/fsl_csi.c b/devices/MIMXRT1176/drivers/fsl_csi.c
+index bb6d120b..cc51026e 100644
+--- a/devices/MIMXRT1176/drivers/fsl_csi.c
++++ b/devices/MIMXRT1176/drivers/fsl_csi.c
+@@ -114,7 +114,7 @@ static uint32_t CSI_TransferGetEmptyBuffer(csi_handle_t *handle);
+  * @param handle Pointer to CSI driver handle.
+  * @param buffer The empty buffer to put.
+  */
+-static void CSI_TransferPutEmptyBuffer(csi_handle_t *handle, uint32_t buffer);
++static bool CSI_TransferPutEmptyBuffer(csi_handle_t *handle, uint32_t buffer);
+ 
+ /*!
+  * @brief Get the RX frame buffer address.
+@@ -226,25 +226,38 @@ static uint32_t CSI_TransferGetEmptyBufferCount(csi_handle_t *handle)
+     return handle->emptyBufferCnt;
+ }
+ 
++/* sentai 2026-10-31 (audit F15): empty-buffer bookkeeping moved out of the
++ * frame buffers into handle->emptyBufferStack (see fsl_csi.h).  Both helpers
++ * are bounds-checked; a violation is reported through the user hook (a
++ * counter in ISR context, never a fault) instead of dereferencing pixel
++ * data.  kind: 1 = get on an empty list, 2 = put on a full list. */
++extern void coralmicro_csi_on_queue_fault(uint32_t kind);
++/* Default: count-nothing hook.  An application may override it (strong
++ * definition) to record the fault kind (1 = empty-buffer underflow,
++ * 2 = full-buffer queue overflow). */
++__attribute__((weak)) void coralmicro_csi_on_queue_fault(uint32_t kind) { (void)kind; }
++
+ static uint32_t CSI_TransferGetEmptyBuffer(csi_handle_t *handle)
+ {
+-    pvoid_to_u32_t buf;
+-
+-    buf.pvoid = handle->emptyBuffer;
++    if (handle->emptyBufferCnt == 0U)
++    {
++        coralmicro_csi_on_queue_fault(1U);
++        return 0U;
++    }
+     handle->emptyBufferCnt--;
+-    handle->emptyBuffer = *(void **)(buf.pvoid);
+-
+-    return buf.u32;
++    return handle->emptyBufferStack[handle->emptyBufferCnt];
+ }
+ 
+-static void CSI_TransferPutEmptyBuffer(csi_handle_t *handle, uint32_t buffer)
++static bool CSI_TransferPutEmptyBuffer(csi_handle_t *handle, uint32_t buffer)
+ {
+-    pvoid_to_u32_t buf;
+-    buf.u32 = buffer;
+-
+-    *(void **)(buf.pvoid) = handle->emptyBuffer;
+-    handle->emptyBuffer   = buf.pvoid;
++    if (handle->emptyBufferCnt >= (uint8_t)CSI_DRIVER_ACTUAL_QUEUE_SIZE)
++    {
++        coralmicro_csi_on_queue_fault(2U);
++        return false;
++    }
++    handle->emptyBufferStack[handle->emptyBufferCnt] = buffer;
+     handle->emptyBufferCnt++;
++    return true;
+ }
+ 
+ static uint32_t CSI_GetRxBufferAddr(CSI_Type *base, uint8_t index)
+@@ -781,11 +794,11 @@ status_t CSI_TransferSubmitEmptyBuffer(CSI_Type *base, csi_handle_t *handle, uin
+     CSI_REG_CR1(base) = (csicr1 & ~(CSI_CR1_FB2_DMA_DONE_INTEN_MASK | CSI_CR1_FB1_DMA_DONE_INTEN_MASK));
+ 
+     /* Save the empty frame buffer address to queue. */
+-    CSI_TransferPutEmptyBuffer(handle, frameBuffer);
++    bool ok = CSI_TransferPutEmptyBuffer(handle, frameBuffer);
+ 
+     CSI_REG_CR1(base) = csicr1;
+ 
+-    return kStatus_Success;
++    return ok ? kStatus_Success : kStatus_CSI_QueueFull;
+ }
+ 
+ /*!
+diff --git a/devices/MIMXRT1176/drivers/fsl_csi.h b/devices/MIMXRT1176/drivers/fsl_csi.h
+index dd6f5c08..deaf7eaf 100644
+--- a/devices/MIMXRT1176/drivers/fsl_csi.h
++++ b/devices/MIMXRT1176/drivers/fsl_csi.h
+@@ -239,7 +239,14 @@ struct _csi_handle
+ 
+     volatile uint8_t queueWriteIdx;  /*!< Pointer to save incoming item. */
+     volatile uint8_t queueReadIdx;   /*!< Pointer to read out the item. */
+-    void *volatile emptyBuffer;      /*!< Pointer to maintain the empty frame buffers. */
++    /* sentai 2026-10-31 (audit F15): the stock driver kept the empty
++     * buffers as a singly linked list threaded THROUGH the frame buffers
++     * (the first word of each empty buffer held the next pointer).  A DMA
++     * write into a buffer that was still on that list corrupted the link
++     * and the ISR dereferenced pixel data (BusFault in
++     * CSI_TransferGetEmptyBuffer, BFAR inside SDRAM).  The list is now a
++     * LIFO side array inside the handle, never inside pixel memory. */
++    uint32_t emptyBufferStack[CSI_DRIVER_ACTUAL_QUEUE_SIZE]; /*!< Empty frame buffer addresses (LIFO). */
+     volatile uint8_t emptyBufferCnt; /*!< Empty frame buffers count. */
+ 
+     volatile uint8_t activeBufferNum; /*!< How many frame buffers are in progres currently. */

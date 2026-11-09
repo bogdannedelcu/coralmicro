@@ -39,6 +39,26 @@ if (NOT DEFINED WIFI_PSK)
 endif()
 add_definitions(-DWIFI_PSK="${WIFI_PSK}")
 
+# Apply the local SDK patches (patches/coralmicro-rt1176-sdk/) onto the
+# third_party/nxp/rt1176-sdk submodule at configure time.  The script is
+# idempotent, so re-running configure is a no-op once the patches are in.
+# Set SKIP_SDK_PATCHES=ON for a build against the pristine SDK.
+option(SKIP_SDK_PATCHES "Skip auto-applying patches in patches/coralmicro-rt1176-sdk/" OFF)
+if(NOT SKIP_SDK_PATCHES)
+    execute_process(
+        COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply_sdk_patches.sh
+        RESULT_VARIABLE _sdk_patch_rc
+        OUTPUT_VARIABLE _sdk_patch_out
+        ERROR_VARIABLE  _sdk_patch_out
+    )
+    message(STATUS "sdk-patches:\n${_sdk_patch_out}")
+    if(NOT _sdk_patch_rc EQUAL 0)
+        message(FATAL_ERROR
+            "apply_sdk_patches.sh failed (rc=${_sdk_patch_rc}); "
+            "rerun manually: bash scripts/apply_sdk_patches.sh")
+    endif()
+endif()
+
 if (NOT DEFINED CORAL_MICRO_ARDUINO)
     set(CORAL_MICRO_ARDUINO 0)
 endif()

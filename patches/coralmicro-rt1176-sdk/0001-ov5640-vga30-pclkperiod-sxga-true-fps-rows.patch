@@ -1,0 +1,150 @@
+diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
+index b8d401e6..fde4604a 100644
+--- a/components/video/camera/device/ov5640/fsl_ov5640.c
++++ b/components/video/camera/device/ov5640/fsl_ov5640.c
+@@ -368,6 +368,20 @@ static const ov5640_reg_val_t ov5640InitParam[] = {
+ };
+ 
+ static const ov5640_resolution_param_t resolutionParam[] = {
++    {
++        /* sentai 2026-04-24: SXGA 1280x960, 2x2 binned from QSXGA.
++         * Same bin-mode register values as VGA but output sized
++         * 1280x960.  Provides 4x pixel count vs VGA at ~2x bandwidth
++         * (binning keeps the read budget comparable).  Reg map:
++         *   0x3800/01 startX=0; 0x3802/03 startY=0
++         *   0x3804/05 endX=0x0a3f; 0x3806/07 endY=0x079b  (full sensor)
++         *   0x3808/09 outW=0x0500 (1280); 0x380a/0b outH=0x03c0 (960)
++         *   0x380c/0d HTS=0x0768 (1896); 0x380e/0f VTS=0x03d8 (984)
++         *   0x3810/11/12/13 offsets; 0x3814/15 2x2-bin incr=0x31 */
++        .resolution = FSL_VIDEO_RESOLUTION(1280, 960),
++        .param      = {0x00, 0x00, 0x00, 0x00, 0x0a, 0x3f, 0x07, 0x9b, 0x05, 0x00, 0x03,
++                  0xc0, 0x07, 0x68, 0x03, 0xd8, 0x00, 0x10, 0x00, 0x06, 0x31, 0x31},
++    },
+     {
+         .resolution = (uint32_t)kVIDEO_ResolutionVGA,
+         .param      = {0x00, 0x00, 0x00, 0x04, 0x0a, 0x3f, 0x07, 0x9b, 0x02, 0x80, 0x01,
+@@ -492,14 +506,76 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+         .pclkPeriod  = 0x0a,
+     },
+     {
++        /* sentai: pclkPeriod was 0x0a (identical to the 15-fps VGA row
++         * above) — empirically that stalls continuous streaming after
++         * the first frame.  Doubled to 0x14 so the MIPI T-HSSETTLE
++         * window scales with the frame period, matching OmniVision
++         * AN1.3 guidance and what Linux's ov5640.c does for VGA/30.
++         * Revert to 0x0a if a future test shows pipeline-mode frames
++         * tearing or if QVGA path breaks (shared PLL tree). */
+         .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
+         .framePerSec = 30,
+         .pllCtrl1    = 0x14,
+         .pllCtrl2    = 0x38,
+         .vfifoCtrl0C = 0x22,
+         .pclkDiv     = 0x02,
++        .pclkPeriod  = 0x14,
++    },
++    {
++        /* sentai VGA @ 45 fps, 2nd attempt.  Linux kernel ov5640.c
++         * documents the PLL clock tree (line ~1280 of that driver) with
++         * constraint PLL_output in 500-1000 MHz range.  The 1st attempt
++         * set pllCtrl1=0x0C, which decodes as sysdiv=0 — invalid per the
++         * datasheet (SYSDIV_MIN=1).  That caused CAMERA_RECEIVER_GetFullBuffer
++         * to stall after the first frame.  This retry keeps sysdiv=1 +
++         * mipi_div=4 (same as VGA/30 row above) and instead bumps the
++         * PLL multiplier 0x38→0x54 (56→84) to scale pixel rate 1.5×
++         *   PLL_output = 24 MHz / 3 (prediv) × 84 = 672 MHz (in spec)
++         *   vs VGA/30: 24/3 × 56 = 448 MHz
++         * pclkPeriod scales inversely with lane bit rate:
++         *   0x14 × (56/84) = 13.33 ≈ 0x0D  */
++        .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
++        .framePerSec = 45,
++        .pllCtrl1    = 0x14,
++        .pllCtrl2    = 0x54,
++        .vfifoCtrl0C = 0x22,
++        .pclkDiv     = 0x02,
++        .pclkPeriod  = 0x0D,
++    },
++    {
++        /* sentai 2026-04-25: VGA @ 90 fps, datasheet-supported max for
++         * 640x480.  Pixel rate 27.6 MP/s = identical to 720P/30, which
++         * in this driver uses pllCtrl1=0x21 / pllCtrl2=0x54.  Clone
++         * those values + pclkPeriod 0x0a (datasheet-typical for the
++         * 720P/30 lane rate).  T-HSSETTLE 0x12 (matches 720P/30 entry
++         * in csi2rxHsSettle table).  Sensor streams cleanly but TPU
++         * pipeline DEAD-END (110 MB/s SDRAM saturates SEMC). */
++        .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
++        .framePerSec = 90,
++        .pllCtrl1    = 0x21,
++        .pllCtrl2    = 0x54,
++        .vfifoCtrl0C = 0x22,
++        .pclkDiv     = 0x02,
+         .pclkPeriod  = 0x0a,
+     },
++    {
++        /* sentai 2026-04-25: VGA @ 60 fps experiment.  Pixel rate
++         * 18.4 MP/s = 4/3 of VGA45 (13.8) and 2/3 of VGA90 (27.6).
++         * Strategy: keep VGA45 sysdiv (pllCtrl1=0x14) + bump pllCtrl2
++         * mult from 84 (0x54) to 112 (0x70) for ~4/3 lane rate.
++         * NOTE: 0x70 was tried in an earlier session and hung —
++         * blamed on missing 0x3037/0x3108 companion regs.  Re-trying
++         * here because we now have the VGA90 path validated (sensor
++         * streams cleanly at 27.6 MP/s with pllCtrl2=0x54).  pclkPeriod
++         * 0x0c chosen mid-way between VGA45's 0x0D and VGA90's 0x0a. */
++        .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
++        .framePerSec = 60,
++        .pllCtrl1    = 0x14,
++        .pllCtrl2    = 0x70,
++        .vfifoCtrl0C = 0x22,
++        .pclkDiv     = 0x02,
++        .pclkPeriod  = 0x0c,
++    },
+     {
+         .resolution  = (uint32_t)kVIDEO_ResolutionQVGA,
+         .framePerSec = 15,
+@@ -554,6 +630,47 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+         .pclkDiv     = 0x04,
+         .pclkPeriod  = 0x0a,
+     },
++    /* sentai 2026-04-24: SXGA 1280x960 clock configs (2x2 binned from QSXGA).
++     * sentai 2026-11-01 (EXP-s260/s264, patch 0007): the original rows were
++     * cloned from the 720P/30 row (PLL 84x = 0x54), but the 1280x960 frame has
++     * 984 lines (VTS) instead of 720p's ~740, so they streamed 22.6 and 11.2
++     * frames/s (CSI CR3.FRMCNT) while being keyed 30 and 15.  Frame rate is
++     * proportional to PLL mult / (sysdiv x mipi_div).  The keys now mean the
++     * measured frame rate: 15 and 30 use PLL 112x (0x70, 896 MHz, the same
++     * PLL the VGA/60 row runs); 22 keeps the old 84x row for the legacy
++     * XYUV8888 capture (4 B/px), which starves the SDRAM at a true 30 fps.
++     * pclkPeriod scales with the pixel clock (0x0a x 84/112 = 0x08). */
++    {
++        /* SXGA 15.0 fps measured (sysdiv 4). */
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 15,
++        .pllCtrl1    = 0x41,
++        .pllCtrl2    = 0x70,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x10,
++    },
++    {
++        /* SXGA 22.6 fps measured: the pre-2026-11-01 "30" row, kept for the
++         * legacy 4 B/px capture path. */
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 22,
++        .pllCtrl1    = 0x21,
++        .pllCtrl2    = 0x54,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x0a,
++    },
++    {
++        /* SXGA 30.0 fps measured (sysdiv 2). */
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 30,
++        .pllCtrl1    = 0x21,
++        .pllCtrl2    = 0x70,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x08,
++    },
+ };
+ 
+ static const ov5640_light_mode_config_t s_ov5640LightModeConfigs[] = {
