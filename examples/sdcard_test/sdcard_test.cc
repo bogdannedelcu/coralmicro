@@ -33,9 +33,17 @@
 namespace coralmicro {
 namespace {
 
-// 32-byte aligned buffer for SD card operations
+// A card that does not mount as FAT32 (e.g. one carrying another filesystem)
+// is left untouched unless this is set: Format() erases everything on it.
+constexpr bool kFormatIfMountFails = false;
+
+// 32-byte aligned buffers for SD card operations
 SDK_ALIGN(uint8_t test_buffer[512], 32);
 SDK_ALIGN(uint8_t read_buffer[512], 32);
+// The block tests are non-destructive: the original content of every block
+// they write is saved first and restored afterwards, so the test can run on
+// a card that carries a filesystem (FAT32 or anything else).
+SDK_ALIGN(uint8_t saved_blocks[1024], 32);  // 2 blocks
 
 void Main() {
   printf("SD Card Test Example\r\n");
@@ -73,8 +81,10 @@ void Main() {
     printf("  Manufacturer ID: 0x%02X\r\n", info.manufacturer_id);
     printf("  OEM ID: 0x%04X\r\n", info.oem_id);
     printf("  Product Name: %s\r\n", info.product_name);
-    printf("  Block Size: %u bytes\r\n", info.block_size);
-    printf("  Block Count: %u\r\n", info.block_count);
+    printf("  Block Size: %lu bytes\r\n", (unsigned long)info.block_size);
+    printf("  Block Count: %lu\r\n", (unsigned long)info.block_count);
+    printf("  Bus: %u-bit, %lu Hz, timing mode %u\r\n", info.bus_width,
+           (unsigned long)info.bus_clock_hz, info.timing_mode);
     printf("  Capacity: %llu bytes (%.2f MB)\r\n", info.capacity_bytes,
            static_cast<double>(info.capacity_bytes) / (1024.0 * 1024.0));
     printf("  Type: %s\r\n", info.is_high_capacity ? "SDHC/SDXC" : "SDSC");
@@ -94,9 +104,16 @@ void Main() {
     test_buffer[i] = static_cast<uint8_t>(i & 0xFF);
   }
 
-  // Write test block to sector 1000 (avoid boot sectors)
+  // Write test block to sector 1000 (avoid boot sectors); save it first.
   const uint32_t test_block = 1000;
-  printf("Writing test pattern to block %u...\r\n", test_block);
+  if (!SDCard::ReadBlocks(test_block, saved_blocks, 1)) {
+    printf("ERROR: Failed to read block %lu before the write test\r\n",
+           (unsigned long)test_block);
+    SDCard::Deinit();
+    LedSet(Led::kStatus, false);
+    return;
+  }
+  printf("Writing test pattern to block %lu...\r\n", (unsigned long)test_block);
   if (!SDCard::WriteBlocks(test_block, test_buffer, 1)) {
     printf("ERROR: Failed to write test block\r\n");
     SDCard::Deinit();
@@ -106,7 +123,7 @@ void Main() {
   printf("Write successful\r\n");
 
   // Read back the test block
-  printf("Reading back block %u...\r\n", test_block);
+  printf("Reading back block %lu...\r\n", (unsigned long)test_block);
   if (!SDCard::ReadBlocks(test_block, read_buffer, 1)) {
     printf("ERROR: Failed to read test block\r\n");
     SDCard::Deinit();
@@ -114,6 +131,11 @@ void Main() {
     return;
   }
   printf("Read successful\r\n");
+
+  // Restore the original content
+  if (!SDCard::WriteBlocks(test_block, saved_blocks, 1)) {
+    printf("WARNING: failed to restore block %lu\r\n", (unsigned long)test_block);
+  }
 
   // Verify data
   bool data_match = true;
@@ -150,27 +172,35 @@ void Main() {
     multi_buffer[i] = static_cast<uint8_t>((i + 100) & 0xFF);
   }
 
-  // Write 2 blocks
+  // Write 2 blocks (saved first, restored afterwards)
   const uint32_t multi_block_start = 2000;
-  printf("Writing 2 blocks starting at block %u...\r\n", multi_block_start);
-  if (SDCard::WriteBlocks(multi_block_start, multi_buffer, 2)) {
-    printf("Multi-block write successful\r\n");
+  if (!SDCard::ReadBlocks(multi_block_start, saved_blocks, 2)) {
+    printf("Multi-block: failed to read blocks before the write test\r\n");
+  } else {
+    printf("Writing 2 blocks starting at block %lu...\r\n", (unsigned long)multi_block_start);
+    if (SDCard::WriteBlocks(multi_block_start, multi_buffer, 2)) {
+      printf("Multi-block write successful\r\n");
 
-    // Read back
-    SDK_ALIGN(uint8_t multi_read_buffer[1024], 32);
-    if (SDCard::ReadBlocks(multi_block_start, multi_read_buffer, 2)) {
-      printf("Multi-block read successful\r\n");
+      // Read back
+      SDK_ALIGN(uint8_t multi_read_buffer[1024], 32);
+      if (SDCard::ReadBlocks(multi_block_start, multi_read_buffer, 2)) {
+        printf("Multi-block read successful\r\n");
 
-      if (std::memcmp(multi_buffer, multi_read_buffer, sizeof(multi_buffer)) == 0) {
-        printf("Multi-block verification passed!\r\n");
+        if (std::memcmp(multi_buffer, multi_read_buffer, sizeof(multi_buffer)) == 0) {
+          printf("Multi-block verification passed!\r\n");
+        } else {
+          printf("Multi-block verification failed\r\n");
+        }
       } else {
-        printf("Multi-block verification failed\r\n");
+        printf("Multi-block read failed\r\n");
       }
     } else {
-      printf("Multi-block read failed\r\n");
+      printf("Multi-block write failed\r\n");
     }
-  } else {
-    printf("Multi-block write failed\r\n");
+    if (!SDCard::WriteBlocks(multi_block_start, saved_blocks, 2)) {
+      printf("WARNING: failed to restore blocks %lu..%lu\r\n",
+             (unsigned long)multi_block_start, (unsigned long)multi_block_start + 1);
+    }
   }
 
   // Test filesystem operations
@@ -178,8 +208,15 @@ void Main() {
 
   printf("Mounting filesystem (FatFs drive %s)...\r\n", SDCard::FatFsDrive());
   if (!SDCard::Mount("/sd")) {
-    printf("ERROR: Failed to mount filesystem\r\n");
-    printf("The SD card may need to be formatted. Attempting format...\r\n");
+    printf("ERROR: Failed to mount filesystem (not FAT32, or no partition table?)\r\n");
+    if (!kFormatIfMountFails) {
+      printf("Formatting is OFF (kFormatIfMountFails): the card keeps its contents.\r\n");
+      printf("Set kFormatIfMountFails = true to format it as FAT32 from here.\r\n");
+      SDCard::Deinit();
+      LedSet(Led::kStatus, false);
+      return;
+    }
+    printf("Attempting format...\r\n");
 
     if (SDCard::Format()) {
       printf("Format successful! Trying mount again...\r\n");
