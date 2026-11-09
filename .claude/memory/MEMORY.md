@@ -1,5 +1,6 @@
 # Memory Index
 
+- [Branch lucian/board-rev-1.1 — SentAI-free port of the rev-1.1 hardware support for the camera colleague; test with --ram from the main flashtool, vendor PID 18d1:9308 udev, console via raw cat; FatFs path + cam2 image pending (2026-11-09)](project_lucian_board_rev_1_1_branch.md) — mirror rev-1.1 hardware fixes onto that branch.
 - [OP-S10-W26 pilot follow-me — research done 2026-11-02: one TPU model + M7 lock/bridge/estimator, attitude-error budget, LQR+DOB+CBF controller, anti-cheat note for simulated phone GNSS](project_pilot_follow_me_w26.md) — design in ideas/objects_plan/23_*.md.
 - [EDAPA dataset viewer (LAN, https://dataset.edapa.proiecte.org/) — cookie login, /dvc/* API, 97 synthetic aerial-people datasets / 648 GB (2026-11-02)](reference_edapa_dataset_viewer.md) — reference images for detector-metric experiments.
 - [Camera module registry — IDs + register sets + characterisation in examples/sentai_runtime/camera_modules/ (W24-T22, 2026-11-02)](project_camera_module_registry_w24_t22.md) — operator decision: permanent DB; OTP write DECLINED by the operator (AVDD 2.1 V constraint); identity = connector + AWB fingerprint.
